@@ -11,10 +11,15 @@ class Sampler:
         self.data = []
         self.thread = None
         self.plotter = plotter
+        self.zero_point = 0
         self.serial_available = False
         self.port = None
         self.connect()
         self.stop_event = threading.Event()
+
+    def set_zero_point(self):
+        if self.data:
+            self.zero_point = self.data[-1][0]
 
     def find_arduino_port(self):
         ports = serial.tools.list_ports.comports()
@@ -99,7 +104,7 @@ class Sampler:
                     # Remove any unwanted characters (non-numeric)
                     cleaned_str = ''.join(filter(lambda x: x.isdigit() or x == '.', xa))
                     try:
-                        xi = float(cleaned_str)  # Convert to float
+                        xi = float(cleaned_str) - self.zero_point  # Convert to float and zero point
                     except ValueError:
                         print("Error:", cleaned_str)
                         continue  # Skip appending data if conversion fails
@@ -119,6 +124,7 @@ class Sampler:
                         print(f"Error in sampling thread: {e}")
 
     def get_data(self):
+        return True
         return self.data
 
     def clear_data(self):

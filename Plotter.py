@@ -19,6 +19,12 @@ class Plotter:
         self.ax1 = ax1
         self.ax2 = ax2
         self.hl, = self.ax1.plot([], [])  # Set the plot line on the axis
+        self.ax1.set_title('Live Data')
+        self.ax1.set_xlabel('Distance (m)')
+        self.ax1.set_ylabel('Displacement (µm)')
+        self.ax2.set_title('Saved Data')
+        self.ax2.set_xlabel('Distance (m)')
+        self.ax2.set_ylabel('Displacement (µm)')
 
     def update_plot(self, new_data):  # Schedule update_plot in the main thread.
         self.root.after(0, self._update_plot, new_data)
@@ -27,15 +33,27 @@ class Plotter:
         x, y = zip(*new_data)
         self.hl.set_xdata(x)
         self.hl.set_ydata(y)
-        self.ax1.relim()
-        self.ax1.autoscale_view()
+        self.ax1.figure.canvas.draw()
+        self.update_limit()
+
+    def update_limit(self):
+        if self.root.manual_limit_var.get():
+            try:
+                x_min = float(self.root.x_min_entry.get())
+                x_max = float(self.root.x_max_entry.get())
+                self.ax1.set_xlim(x_min, x_max)
+            except ValueError:
+                pass
+        else:
+            self.ax1.relim()  # Recalculate limits
+            self.ax1.autoscale_view()
         self.ax1.figure.canvas.draw()
 
     def plot_data(self, selected_data, offset_entry, trend_vars):
         if self.ax2 is None:
             return
 
-        self.ax2.clear()
+        self.clear_plot2()
 
         for name, datasets in selected_data.items():
             x, y = datasets['original']
@@ -47,14 +65,10 @@ class Plotter:
                 self.add_trend_line(x, y, name)
 
             # Plot filtered data if exists
-            if 'filtered' in datasets:
-                for filter_name, (xf, yf) in datasets['filtered'].items():
-                    self.ax2.plot(xf, np.array(yf), label=f"{name} ({filter_name})", linestyle='--')
-            # Verify if 'filtered' is a subset containing 'subsets'
+            if 'filtered' in datasets and datasets['filtered'] is not None:
+                xf, yf = datasets['filtered']
+                self.ax2.plot(xf, np.array(yf), label=f"{name} (filtered)", linestyle='--')
 
-        self.ax2.set_title('Saved Data')
-        self.ax2.set_xlabel('Distance (m)')
-        self.ax2.set_ylabel('Displacement (µm)')
         self.ax2.legend()
         self.ax2.grid(True)
         self.ax2.figure.canvas.draw()
@@ -67,7 +81,7 @@ class Plotter:
         self.ax2.legend()
         self.ax2.figure.canvas.draw()
 
-    def update_filter(self, name, slider, slider_name):
+    def update_filter(self, name, slider, slider_name): #updaten
         dft = np.fft.fft(self.data[name][1])
         cutoff_freq = slider.get()
         dft_filtered = dft.copy()
@@ -75,14 +89,20 @@ class Plotter:
         y_filtered = np.real(np.fft.ifft(dft_filtered))
         self.filtered[name][slider_name] = (self.data[name][0], y_filtered)
 
-
     def clear_plot1(self):
         if self.ax1 is not None:
             self.ax1.clear()
-            self.ax1.figure.canvas.draw()
             self.hl, = self.ax1.plot([], [])
+            self.ax1.set_title('Live Data')
+            self.ax1.set_xlabel('Distance (m)')
+            self.ax1.set_ylabel('Displacement (µm)')
+            self.ax1.figure.canvas.draw()
 
     def clear_plot2(self):
         if self.ax2 is not None:
             self.ax2.clear()
+            self.ax2.set_title('Saved Data')
+            self.ax2.set_xlabel('Distance (m)')
+            self.ax2.set_ylabel('Displacement (µm)')
             self.ax2.figure.canvas.draw()
+

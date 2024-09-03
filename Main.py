@@ -73,7 +73,11 @@ class GUI:
         self.filter_button = None
         self.connect_button = None
         self.manual_limit = None
+        self.x_min_entry = None
+        self.x_max_entry = None
         self.toggle_direction = None
+        self.zero_button = None
+        self.zero_entry = None
 
         self.root.title("Measurement App")
         self.setup_layout()  # Initialize layout
@@ -100,14 +104,14 @@ class GUI:
         self.mainframe = ttk.Frame(self.root, padding="10 10 10 10", borderwidth=2, relief="groove")
         self.mainframe.grid(column=1, row=0, rowspan=2, sticky=tk.NSEW)
 
-        self.plots = ttk.Labelframe(self.mainframe, text="Plot", padding="10 10 10 10", borderwidth=2, relief="groove")
-        self.plots.grid(column=0, row=3, sticky=tk.NSEW)
+        self.plots = ttk.Labelframe(self.mainframe, text="Plot limits", padding="10 10 10 10", borderwidth=2, relief="groove")
+        self.plots.grid(column=0, row=2, sticky=tk.NSEW)
 
         self.measure = ttk.Labelframe(self.mainframe, text="Sample", padding="10 10 10 10", borderwidth=2, relief="groove")
         self.measure.grid(column=0, row=1, sticky=tk.NSEW)
 
         self.store = ttk.Labelframe(self.mainframe, text="Save", padding="10 10 10 10", borderwidth=2, relief="groove")
-        self.store.grid(column=0, row=2, sticky=tk.NSEW)
+        self.store.grid(column=0, row=3, sticky=tk.NSEW)
 
         self.visual = ttk.Labelframe(self.mainframe, text="Data", padding="10 10 10 10", borderwidth=2, relief="groove")
         self.visual.grid(column=0, row=4, sticky=tk.NSEW)
@@ -115,10 +119,10 @@ class GUI:
         self.filtering = ttk.Labelframe(self.mainframe, text="Filter", padding="10 10 10 10", borderwidth=2, relief="groove")
         self.filtering.grid(column=0, row=5, sticky=tk.NSEW)
 
-        self.plot_frame1 = ttk.Frame(self.root, padding="10 10 10 10", borderwidth=2, relief="groove")
+        self.plot_frame1 = ttk.Frame(self.root, borderwidth=2, relief="groove")
         self.plot_frame1.grid(row=0, column=0, sticky=tk.NSEW)
 
-        self.plot_frame2 = ttk.Frame(self.root, padding="10 10 10 10", borderwidth=2, relief="groove")
+        self.plot_frame2 = ttk.Frame(self.root, borderwidth=2, relief="groove")
         self.plot_frame2.grid(row=1, column=0, sticky=tk.NSEW)
 
         self.fig1, self.ax1 = plt.subplots()
@@ -134,23 +138,42 @@ class GUI:
         self.ax2.set_title('Saved Data')
 
         self.manual_limit_var = tk.IntVar(value=0)
-        self.manual_limit = ttk.Checkbutton(self.plots, text="Manual Limit", variable=self.manual_limit_var)
+        self.manual_limit = ttk.Checkbutton(self.plots, text="Manual", variable=self.manual_limit_var)
         self.manual_limit.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
 
+        self.x_min_entry = ttk.Entry(self.plots, width=10)
+        self.x_min_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+        self.x_min_entry.bind("<FocusIn>", self.clear_placeholder)
+        self.x_min_entry.bind("<FocusOut>", self.add_placeholder)
+        self.add_placeholder(event=None, widget=self.x_min_entry, placeholder="min")
+
+        self.x_max_entry = ttk.Entry(self.plots, width=10)
+        self.x_max_entry.grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
+        self.x_max_entry.bind("<FocusIn>", self.clear_placeholder)
+        self.x_max_entry.bind("<FocusOut>", self.add_placeholder)
+        self.add_placeholder(event=None, widget=self.x_max_entry, placeholder="max")
+
         self.direction_var = tk.IntVar(value=0)
-        self.toggle_direction = ttk.Checkbutton(self.plots, text="Toggle <-->", variable=self.direction_var)
-        self.toggle_direction.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+        self.toggle_direction = ttk.Checkbutton(self.plots, text="Toggle", variable=self.direction_var)
+        self.toggle_direction.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
+
+        self.zero_button = ttk.Button(self.plots, text="Zero", command=self.zero_measurement)
+        self.zero_button.grid(row=0, column=5, padx=5, pady=5, sticky=tk.W)
+
+        self.zero_entry = ttk.Entry(self.plots, width=10)
+        self.zero_entry.grid(row=0, column=6, padx=5, pady=5, sticky=tk.W)
+        self.zero_entry.bind("<FocusOut>", self.clear_zero_point)
 
         self.connect_button = ttk.Button(self.measure, text="Connect", command=self.sampler.connect)
         self.connect_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
 
-        self.start_button = ttk.Button(self.measure, text="Start Sampling", command=self.start_sampling)
+        self.start_button = ttk.Button(self.measure, text="Start", command=self.start_sampling)
         self.start_button.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
 
-        self.stop_button = ttk.Button(self.measure, text="Stop Sampling", command=self.stop_sampling, state=tk.DISABLED)
+        self.stop_button = ttk.Button(self.measure, text="Stop", command=self.stop_sampling, state=tk.DISABLED)
         self.stop_button.grid(row=1, column=2, padx=5, pady=5, sticky=tk.W)
 
-        self.clear_button = ttk.Button(self.measure, text="Clear Sampler", command=self.clear_sampler)
+        self.clear_button = ttk.Button(self.measure, text="Clear", command=self.clear_sampler)
         self.clear_button.grid(row=1, column=3, padx=5, pady=5, sticky=tk.W)
 
         self.add_data_button = ttk.Button(self.store, text="Add Data", command=self.add_data)
@@ -208,19 +231,46 @@ class GUI:
         self.filter_button = ttk.Button(self.filtering, text="Filter", command=self.lowpass)
         self.filter_button.grid(row=0, column=0, padx=5, pady=5, sticky='w')
 
+    def clear_placeholder(self, event):
+        if event.widget.get() in ["min", "max"]:
+            event.widget.delete(0, tk.END)
+            event.widget.config(foreground='black')
+
+    def add_placeholder(self, event, widget=None, placeholder=None):
+        if widget is None:
+            widget = event.widget
+        if not widget.get():
+            if placeholder is None:
+                placeholder = "min" if widget == self.x_min_entry else "max"
+            widget.insert(0, placeholder)
+            widget.config(foreground='grey')
+
+    def zero_measurement(self):
+        self.sampler.set_zero_point()
+        if self.sampler.data:
+            self.zero_entry.delete(0, tk.END)
+            self.zero_entry.insert(0, str(self.sampler.data[-1][0]))
+
+    def clear_zero_point(self, event):
+        if not self.zero_entry.get():
+            self.sampler.zero_point = 0
+
     def check_connection_status(self):
         if self.sampler.is_connected():
-            self.measure.configure(style='TLabelframe')
+            self.start_button.config(state=tk.NORMAL)
+            # self.measure.configure(style='TLabelframe')
             print("connected")
         else:
-            self.measure.configure(style='Disabled.TLabelframe')  # Indicate that there's no connection
+            self.start_button.config(state=tk.DISABLED)
+            # self.measure.configure(style='Disabled.TLabelframe')  # Indicate that there's no connection
 
         self.root.after(1000, self.check_connection_status)
 
     def start_sampling(self):
-        self.sampler.start_sampling()
-        self.start_button.config(state=tk.DISABLED)
-        self.stop_button.config(state=tk.NORMAL)
+        if self.sampler.is_connected():
+            self.sampler.start_sampling()
+            self.start_button.config(state=tk.DISABLED)
+            self.stop_button.config(state=tk.NORMAL)
 
     def stop_sampling(self):
         self.sampler.stop_sampling()
@@ -240,10 +290,15 @@ class GUI:
                 messagebox.showerror("Error", "Name already exists!")
                 return
 
-            x_data, y_data = zip(*self.sampler.get_data())
+            # x_data, y_data = zip(*self.sampler.get_data())
+            x_data = np.linspace(0, 10, 100)
+            y_data = np.sin(x_data) + np.random.normal(0, 0.1, x_data.shape)  # Sine wave with noise
 
-            self.data[name] = (list(x_data), list(y_data))
+            self.data[name] = {'original': (list(x_data), list(y_data)), 'filtered': None}
+            # self.data[name] = {'original': (list(x_data), list(y_data)), 'filtered': None}
             self.add_checkbox(name)
+
+            print(self.data)
 
     def add_checkbox(self, name):
         # Create dataset widget
@@ -261,19 +316,19 @@ class GUI:
         self.save_vars[name] = tk.BooleanVar()
 
         # Add dataset name and buttons
-        name_label = tk.Label(widget, width=10, text=name)
+        name_label = ttk.Label(widget, width=10, text=name)
         name_label.grid(row=0, column=0, padx=5, pady=0, sticky="w")
-        check = tk.Checkbutton(widget, width=2, variable=self.plot_vars[name])
+        check = ttk.Checkbutton(widget, width=2, variable=self.plot_vars[name])
         check.grid(row=0, column=1, padx=5, pady=0, sticky="w")
-        trend_check = tk.Checkbutton(widget, width=2, variable=self.trend_vars[name])
+        trend_check = ttk.Checkbutton(widget, width=2, variable=self.trend_vars[name])
         trend_check.grid(row=0, column=2, padx=5, pady=0, sticky="w")
         offset_entry = ttk.Entry(widget, width=6, textvariable=self.offset_entry[name])
         offset_entry.grid(row=0, column=3, padx=5, pady=0, sticky=tk.W)
 
-        save_check = tk.Checkbutton(widget, width=2, variable=self.save_vars[name])
+        save_check = ttk.Checkbutton(widget, width=2, variable=self.save_vars[name])
         save_check.grid(row=0, column=4, padx=5, pady=0, sticky="w")
         # Remove button
-        remove_button = tk.Button(widget, text="Remove", command=lambda w=widget: self.remove_checkbox(w))
+        remove_button = ttk.Button(widget, text="Remove", command=lambda w=widget: self.remove_checkbox(w))
         remove_button.grid(row=0, column=5, padx=5, pady=0, sticky="w")
 
     def remove_checkbox(self, widget):
@@ -290,7 +345,6 @@ class GUI:
         # Cleanup associated variables
         del self.plot_vars[name]
         del self.trend_vars[name]
-        # del self.offset_vars[name]
         del self.offset_entry[name]
         del self.save_vars[name]
 
@@ -306,9 +360,16 @@ class GUI:
 
         with open(save_path, 'w', newline='') as f:
             writer = csv.writer(f)
-            for name, (x, y) in selected_data.items():
-                writer.writerow([name, 'X'] + x)
-                writer.writerow([name, 'Y'] + y)
+            for name, datasets in selected_data.items():
+                x_orig, y_orig = datasets['original']
+                writer.writerow([name, 'X'] + x_orig)
+                writer.writerow([name, 'Y'] + y_orig)
+
+                # Check if 'filtered' key exists and save it if present
+                if 'filtered' in datasets and datasets['filtered']:
+                    x_filt, y_filt = datasets['filtered']
+                    writer.writerow([name, 'Filtered_X'] + x_filt)
+                    writer.writerow([name, 'Filtered_Y'] + y_filt)
 
         messagebox.showinfo("Success", "Data saved successfully!")
 
@@ -325,13 +386,21 @@ class GUI:
                     continue
                 name = row[0]
                 if name not in loaded_data:
-                    loaded_data[name] = [[], []]
+                    loaded_data[name] = {'original': [[], []], 'filtered': None}
                 if row[1] == 'X':
-                    loaded_data[name][0] = list(map(float, row[2:]))
+                    loaded_data[name]['original'][0] = list(map(float, row[2:]))
                 elif row[1] == 'Y':
-                    loaded_data[name][1] = list(map(float, row[2:]))
+                    loaded_data[name]['original'][1] = list(map(float, row[2:]))
+                elif row[1] == 'Filtered_X':
+                    if loaded_data[name]['filtered'] is None:
+                        loaded_data[name]['filtered'] = [[], []]
+                    loaded_data[name]['filtered'][0] = list(map(float, row[2:]))
+                elif row[1] == 'Filtered_Y':
+                    if loaded_data[name]['filtered'] is None:
+                        loaded_data[name]['filtered'] = [[], []]
+                    loaded_data[name]['filtered'][1] = list(map(float, row[2:]))
 
-        for name, (x, y) in loaded_data.items():
+        for name, datasets in loaded_data.items():
             if name in self.data:
                 new_name = simpledialog.askstring("Input", f"Name {name} already exists! Enter a new name:")
                 if not new_name:
@@ -339,7 +408,7 @@ class GUI:
                     continue
                 name = new_name
 
-            self.data[name] = (x, y)
+            self.data[name] = datasets
             self.add_checkbox(name)
 
         messagebox.showinfo("Success", "Data loaded successfully!")
@@ -355,14 +424,18 @@ class GUI:
     def lowpass(self):
         name = simpledialog.askstring("Input", f"Dataset:")
         if name in self.data:
-            dft = np.fft.fft(self.data[name][1])
+            x, y = self.data[name]['original']
+            dft = np.fft.fft(y)
             cutoff_freq = 10
             dft_filtered = dft.copy()
             dft_filtered[cutoff_freq:len(dft) - cutoff_freq] = 0
             y_filtered = np.real(np.fft.ifft(dft_filtered))
-            new_name = simpledialog.askstring("Input", f"Name for new dataset:")
-            self.data[new_name] = (self.data[name][0], y_filtered)
-            self.add_checkbox(new_name)
+
+            # Store the filtered data
+            self.data[name]['filtered'] = (x, y_filtered)
+
+        else:
+            messagebox.showwarning("Warning", "Dataset not found!")
 
     def show(self):
         self.root.mainloop()
