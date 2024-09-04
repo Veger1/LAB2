@@ -17,6 +17,7 @@ class MainApp:
         self.sampler = Sampler(self.plotter)
         self.gui = GUI(self.root, self.sampler, self.plotter)
         self.plotter.set_axes(self.gui.ax1, self.gui.ax2)
+        self.plotter.gui = self.gui  # Pass the GUI instance to the plotter
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
@@ -38,50 +39,8 @@ class GUI:
         self.root = window
         self.sampler = sampler
         self.plotter = plotter
-        self.mainframe = None
-        self.plots = None
-        self.measure = None
-        self.store = None
-        self.visual = None
-        self.filtering = None
-        self.plot_frame1 = None
-        self.plot_frame2 = None
-        self.fig1 = None
-        self.ax1 = None
-        self.canvas1 = None
-        self.fig2 = None
-        self.ax2 = None
-        self.canvas2 = None
-        self.start_button = None
-        self.stop_button = None
-        self.clear_button = None
-        self.add_data_button = None
-        self.load_data_button = None
-        self.save_button = None
-        self.remove_data_button = None
-        self.plot_button = None
-        self.checkbox_frame = None
-        self.canvas = None
-        self.scrollbar = None
-        self.scrollable_frame = None
-        self.header_widget = None
-        self.plot_canvas = None
-        self.plot_label = None
-        self.trend_label = None
-        self.offset_label = None
-        self.save_label = None
-        self.filter_button = None
-        self.connect_button = None
-        self.manual_limit = None
-        self.x_min_entry = None
-        self.x_max_entry = None
-        self.toggle_direction = None
-        self.zero_button = None
-        self.zero_entry = None
 
         self.root.title("Measurement App")
-        self.setup_layout()  # Initialize layout
-        self.check_connection_status()  # Initialize connection checker
 
         self.style = ttk.Style()
         self.style.configure('TFrame', background='white')
@@ -100,7 +59,6 @@ class GUI:
         self.save_vars = {}
         self.datasets = []
 
-    def setup_layout(self):
         self.mainframe = ttk.Frame(self.root, padding="10 10 10 10", borderwidth=2, relief="groove")
         self.mainframe.grid(column=1, row=0, rowspan=2, sticky=tk.NSEW)
 
@@ -141,28 +99,29 @@ class GUI:
         self.manual_limit = ttk.Checkbutton(self.plots, text="Manual", variable=self.manual_limit_var)
         self.manual_limit.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
 
-        self.x_min_entry = ttk.Entry(self.plots, width=10)
+        self.x_min_entry = ttk.Entry(self.plots, width=8)
         self.x_min_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         self.x_min_entry.bind("<FocusIn>", self.clear_placeholder)
         self.x_min_entry.bind("<FocusOut>", self.add_placeholder)
         self.add_placeholder(event=None, widget=self.x_min_entry, placeholder="min")
 
-        self.x_max_entry = ttk.Entry(self.plots, width=10)
+        self.x_max_entry = ttk.Entry(self.plots, width=8)
         self.x_max_entry.grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
         self.x_max_entry.bind("<FocusIn>", self.clear_placeholder)
         self.x_max_entry.bind("<FocusOut>", self.add_placeholder)
         self.add_placeholder(event=None, widget=self.x_max_entry, placeholder="max")
 
-        self.direction_var = tk.IntVar(value=0)
-        self.toggle_direction = ttk.Checkbutton(self.plots, text="Toggle", variable=self.direction_var)
+        self.direction_var = tk.BooleanVar(value=False)
+        self.toggle_direction = ttk.Checkbutton(self.plots, text="<->", width=3, variable=self.direction_var, command= self.update_flip_orientation)
         self.toggle_direction.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
 
-        self.zero_button = ttk.Button(self.plots, text="Zero", command=self.zero_measurement)
-        self.zero_button.grid(row=0, column=5, padx=5, pady=5, sticky=tk.W)
+        self.zero_button = ttk.Button(self.plots, text="0", width=3, command=self.zero_measurement)
+        self.zero_button.grid(row=0, column=4, padx=5, pady=5, sticky=tk.W)
 
         self.zero_entry = ttk.Entry(self.plots, width=10)
-        self.zero_entry.grid(row=0, column=6, padx=5, pady=5, sticky=tk.W)
+        self.zero_entry.grid(row=0, column=5, padx=5, pady=5, sticky=tk.W)
         self.zero_entry.bind("<FocusOut>", self.clear_zero_point)
+        self.clear_zero_point(event=None)
 
         self.connect_button = ttk.Button(self.measure, text="Connect", command=self.sampler.connect)
         self.connect_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
@@ -231,6 +190,9 @@ class GUI:
         self.filter_button = ttk.Button(self.filtering, text="Filter", command=self.lowpass)
         self.filter_button.grid(row=0, column=0, padx=5, pady=5, sticky='w')
 
+        # Call here functions that are ran by default
+        self.check_connection_status()  # Initialize connection checker
+
     def clear_placeholder(self, event):
         if event.widget.get() in ["min", "max"]:
             event.widget.delete(0, tk.END)
@@ -249,11 +211,16 @@ class GUI:
         self.sampler.set_zero_point()
         if self.sampler.data:
             self.zero_entry.delete(0, tk.END)
-            self.zero_entry.insert(0, str(self.sampler.data[-1][0]))
+            self.zero_entry.insert(0, str(self.sampler.last_data))
 
     def clear_zero_point(self, event):
         if not self.zero_entry.get():
             self.sampler.zero_point = 0
+            self.zero_entry.insert(0, '0')
+            self.zero_entry.config(foreground='grey')
+
+    def update_flip_orientation(self):
+        self.sampler.flip_orientation = self.direction_var.get()
 
     def check_connection_status(self):
         if self.sampler.is_connected():

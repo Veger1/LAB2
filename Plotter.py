@@ -9,6 +9,7 @@ class Plotter:
         self.ax2 = None
         self.hl, = plt.plot([], [])  # Initialize the plot line
         self.root = root
+        self.gui = None
         self.data = {}
         self.check_vars = {}  # Not needed
         self.trend_vars = {}  # Not needed
@@ -37,14 +38,16 @@ class Plotter:
         self.update_limit()
 
     def update_limit(self):
-        if self.root.manual_limit_var.get():
+        if self.gui.manual_limit_var.get():
             try:
-                x_min = float(self.root.x_min_entry.get())
-                x_max = float(self.root.x_max_entry.get())
+                x_min = float(self.gui.x_min_entry.get())
+                x_max = float(self.gui.x_max_entry.get())
                 self.ax1.set_xlim(x_min, x_max)
             except ValueError:
                 pass
         else:
+            self.ax1.set_xlim(auto=True)
+            self.ax1.set_ylim(auto=True)
             self.ax1.relim()  # Recalculate limits
             self.ax1.autoscale_view()
         self.ax1.figure.canvas.draw()
@@ -81,7 +84,7 @@ class Plotter:
         self.ax2.legend()
         self.ax2.figure.canvas.draw()
 
-    def update_filter(self, name, slider, slider_name): #updaten
+    def update_filter(self, name, slider, slider_name):  # update
         dft = np.fft.fft(self.data[name][1])
         cutoff_freq = slider.get()
         dft_filtered = dft.copy()
@@ -105,4 +108,3 @@ class Plotter:
             self.ax2.set_xlabel('Distance (m)')
             self.ax2.set_ylabel('Displacement (µm)')
             self.ax2.figure.canvas.draw()
-

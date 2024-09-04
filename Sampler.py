@@ -9,6 +9,8 @@ class Sampler:
         self.ser = None
         self.sampling = False
         self.data = []
+        self.last_data = None
+        self.flip_orientation = False
         self.thread = None
         self.plotter = plotter
         self.zero_point = 0
@@ -19,7 +21,8 @@ class Sampler:
 
     def set_zero_point(self):
         if self.data:
-            self.zero_point = self.data[-1][0]
+            print("Zero point set", self.last_data)
+            self.zero_point = self.last_data
 
     def find_arduino_port(self):
         ports = serial.tools.list_ports.comports()
@@ -61,7 +64,6 @@ class Sampler:
     def start_sampling(self):
         try:
             self.ser.write(b'G')  # Send G to start mySerial
-            print("succes")
         except AttributeError:
             messagebox.showinfo("Failed", "Not connected!")
             self.sampling = False
@@ -86,7 +88,7 @@ class Sampler:
             self.sampling = False
             self.stop_event.set()
             if self.thread is not None:
-                self.thread.join(timeout=2)
+                self.thread.join(timeout=1)
                 live = self.thread.is_alive()
                 if live:
                     print("live")
@@ -98,14 +100,18 @@ class Sampler:
             if self.ser.in_waiting > 0:
                 data = self.ser.read_until(b'\n')  # Read until newline character
                 # data = ser.read(ser.in_waiting)  # Read all available bytes
-                print(data)
+                # print(data)
                 parts = data.split(b'\r')
                 if parts[0].startswith(b'\x80\x06\x83') and len(parts) > 1:
                     xa = parts[0][3:-1].decode('ascii', errors='ignore')  # Skip first 3 and last byte
                     # Remove any unwanted characters (non-numeric)
                     cleaned_str = ''.join(filter(lambda x: x.isdigit() or x == '.', xa))
                     try:
-                        xi = float(cleaned_str) - self.zero_point  # Convert to float and zero point
+                        xi = float(cleaned_str)  # Convert to float
+                        self.last_data = xi
+                        xi = xi - self.zero_point
+                        if self.flip_orientation:
+                            xi = -xi
                     except ValueError:
                         print("Error:", cleaned_str)
                         continue  # Skip appending data if conversion fails
@@ -128,6 +134,7 @@ class Sampler:
         return self.data
 
     def clear_data(self):
+        self.last_data = None
         self.data = []
         self.plotter.clear_plot1()
         print("Data cleared")
