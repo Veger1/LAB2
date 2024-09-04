@@ -259,7 +259,6 @@ class GUI:
         if self.sampler.is_connected():
             self.start_button.config(state=tk.NORMAL)
             # self.measure.configure(style='TLabelframe')
-            print("connected")
         else:
             self.start_button.config(state=tk.DISABLED)
             # self.measure.configure(style='Disabled.TLabelframe')  # Indicate that there's no connection

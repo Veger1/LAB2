@@ -34,7 +34,7 @@ class Sampler:
             self.port = self.find_arduino_port()
             if self.port:
                 try:
-                    self.ser = serial.Serial(self.port, 115200, timeout=1)
+                    self.ser = serial.Serial(self.port, 19200, timeout=1)
                     self.serial_available = True
                     print("Serial port initialized")
                 except serial.SerialException:
@@ -61,6 +61,7 @@ class Sampler:
     def start_sampling(self):
         try:
             self.ser.write(b'G')  # Send G to start mySerial
+            print("succes")
         except AttributeError:
             messagebox.showinfo("Failed", "Not connected!")
             self.sampling = False
@@ -124,7 +125,6 @@ class Sampler:
                         print(f"Error in sampling thread: {e}")
 
     def get_data(self):
-        return True
         return self.data
 
     def clear_data(self):
