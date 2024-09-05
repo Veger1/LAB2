@@ -39,6 +39,7 @@ class GUI:
         self.root = window
         self.sampler = sampler
         self.plotter = plotter
+        self.connection_established = False
 
         self.root.title("Measurement App")
 
@@ -72,10 +73,12 @@ class GUI:
         self.store.grid(column=0, row=3, sticky=tk.NSEW)
 
         self.visual = ttk.Labelframe(self.mainframe, text="Data", padding="10 10 10 10", borderwidth=2, relief="groove")
-        self.visual.grid(column=0, row=4, sticky=tk.NSEW)
+        self.visual.grid(column=0, row=5, sticky=tk.NSEW)
 
         self.filtering = ttk.Labelframe(self.mainframe, text="Filter", padding="10 10 10 10", borderwidth=2, relief="groove")
-        self.filtering.grid(column=0, row=5, sticky=tk.NSEW)
+        self.filtering.grid(column=0, row=4, sticky=tk.NSEW)
+
+        self.mainframe.grid_rowconfigure(5, weight=1)  # Make the visual frame expandable
 
         self.plot_frame1 = ttk.Frame(self.root, borderwidth=2, relief="groove")
         self.plot_frame1.grid(row=0, column=0, sticky=tk.NSEW)
@@ -147,10 +150,12 @@ class GUI:
         self.plot_button = ttk.Button(self.store, text="Plot Data", command=self.plot_data)  # # #
         self.plot_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
 
-        self.checkbox_frame = tk.Frame(self.visual)
-        self.checkbox_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        self.checkbox_frame = tk.Frame(self.visual, bg='white')
+        self.checkbox_frame.grid(row=1, column=0, sticky=tk.NSEW)
 
-        self.canvas = tk.Canvas(self.checkbox_frame)
+        self.visual.grid_rowconfigure(1, weight=1)
+
+        self.canvas = tk.Canvas(self.checkbox_frame, bg='white')
         self.scrollbar = tk.Scrollbar(self.checkbox_frame, orient="vertical", command=self.canvas.yview)
         self.scrollable_frame = tk.Frame(self.canvas)
 
@@ -172,20 +177,30 @@ class GUI:
         self.root.columnconfigure(0, weight=1)
         self.root.columnconfigure(1, weight=0)
 
-        self.header_widget = tk.Frame(self.scrollable_frame)
-        self.header_widget.pack(pady=5)
+        self.header_widget = tk.Frame(self.visual)
+        self.header_widget.grid(column=0, row=0, sticky=tk.NSEW)
 
-        self.plot_label = tk.Label(self.header_widget, text="Plot")
-        self.plot_label.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.header_widget.grid_columnconfigure(0, minsize=80)
+        self.header_widget.grid_columnconfigure(1, minsize=50)
+        self.header_widget.grid_columnconfigure(2, minsize=50)
+        self.header_widget.grid_columnconfigure(3, minsize=50)
+        self.header_widget.grid_columnconfigure(4, minsize=50)
+        self.header_widget.grid_columnconfigure(5, minsize=80)
 
-        self.trend_label = tk.Label(self.header_widget, text="Trend")
-        self.trend_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.name_label = tk.Label(self.header_widget, width=8, text="Name")
+        self.name_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
 
-        self.offset_label = tk.Label(self.header_widget, text="Offset")
-        self.offset_label.grid(row=0, column=2, padx=5, pady=5, sticky="w")
+        self.plot_label = tk.Label(self.header_widget, width=5, text="Plot")
+        self.plot_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
-        self.save_label = tk.Label(self.header_widget, text="Save")
-        self.save_label.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        self.trend_label = tk.Label(self.header_widget, width=5, text="Trend")
+        self.trend_label.grid(row=0, column=2, padx=5, pady=5, sticky="w")
+
+        self.offset_label = tk.Label(self.header_widget, width=5, text="Offset")
+        self.offset_label.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+
+        self.save_label = tk.Label(self.header_widget, width=5, text="Save")
+        self.save_label.grid(row=0, column=4, padx=5, pady=5, sticky="w")
 
         self.filter_button = ttk.Button(self.filtering, text="Filter", command=self.lowpass)
         self.filter_button.grid(row=0, column=0, padx=5, pady=5, sticky='w')
@@ -224,10 +239,13 @@ class GUI:
 
     def check_connection_status(self):
         if self.sampler.is_connected():
-            self.start_button.config(state=tk.NORMAL)
+            if not self.connection_established:
+                self.start_button.config(state=tk.NORMAL)
+                self.connection_established = True
             # self.measure.configure(style='TLabelframe')
         else:
             self.start_button.config(state=tk.DISABLED)
+            self.connection_established = False
             # self.measure.configure(style='Disabled.TLabelframe')  # Indicate that there's no connection
 
         self.root.after(1000, self.check_connection_status)
@@ -256,15 +274,13 @@ class GUI:
                 messagebox.showerror("Error", "Name already exists!")
                 return
 
-            # x_data, y_data = zip(*self.sampler.get_data())
-            x_data = np.linspace(0, 10, 100)
-            y_data = np.sin(x_data) + np.random.normal(0, 0.1, x_data.shape)  # Sine wave with noise
+            x_data, y_data = zip(*self.sampler.get_data())
+            # x_data = np.linspace(0, 10, 100)
+            # y_data = np.sin(x_data) + np.random.normal(0, 0.1, x_data.shape)  # Sine wave with noise
+            # Used to test filtering
 
             self.data[name] = {'original': (list(x_data), list(y_data)), 'filtered': None}
-            # self.data[name] = {'original': (list(x_data), list(y_data)), 'filtered': None}
             self.add_checkbox(name)
-
-            print(self.data)
 
     def add_checkbox(self, name):
         # Create dataset widget
@@ -282,20 +298,38 @@ class GUI:
         self.save_vars[name] = tk.BooleanVar()
 
         # Add dataset name and buttons
-        name_label = ttk.Label(widget, width=10, text=name)
+        name_label = ttk.Label(widget, width=8, text=name)
         name_label.grid(row=0, column=0, padx=5, pady=0, sticky="w")
-        check = ttk.Checkbutton(widget, width=2, variable=self.plot_vars[name])
-        check.grid(row=0, column=1, padx=5, pady=0, sticky="w")
-        trend_check = ttk.Checkbutton(widget, width=2, variable=self.trend_vars[name])
-        trend_check.grid(row=0, column=2, padx=5, pady=0, sticky="w")
-        offset_entry = ttk.Entry(widget, width=6, textvariable=self.offset_entry[name])
-        offset_entry.grid(row=0, column=3, padx=5, pady=0, sticky=tk.W)
 
-        save_check = ttk.Checkbutton(widget, width=2, variable=self.save_vars[name])
+        check = ttk.Checkbutton(widget, width=1, variable=self.plot_vars[name])
+        check.grid(row=0, column=1, padx=5, pady=0, sticky="w")
+
+        trend_check = ttk.Checkbutton(widget, width=1, variable=self.trend_vars[name])
+        trend_check.grid(row=0, column=2, padx=5, pady=0, sticky="w")
+
+        offset_entry = ttk.Entry(widget, width=5, textvariable=self.offset_entry[name])
+        offset_entry.grid(row=0, column=3, padx=5, pady=0, sticky="w")
+
+        save_check = ttk.Checkbutton(widget, width=1, variable=self.save_vars[name])
         save_check.grid(row=0, column=4, padx=5, pady=0, sticky="w")
+
         # Remove button
-        remove_button = ttk.Button(widget, text="Remove", command=lambda w=widget: self.remove_checkbox(w))
+        remove_button = ttk.Button(widget, width=8, text="Remove", command=lambda w=widget: self.remove_checkbox(w))
         remove_button.grid(row=0, column=5, padx=5, pady=0, sticky="w")
+
+        # Add slider for filtering frequency
+        slider_value = tk.IntVar(value=0)
+        # slider = ttk.Scale(widget, from_=0, to=10, orient=tk.HORIZONTAL, variable=slider_value)
+        slider = tk.Scale(widget, from_=0, to=10, orient=tk.HORIZONTAL, variable=slider_value, resolution=1)
+        slider.grid(row=1, column=2, columnspan=5,padx=5, pady=0, sticky="w")
+        slider_value_label = ttk.Label(widget, text="0")
+        slider_value_label.grid(row=1, column=1, padx=5, pady=0, sticky="w")
+        slider.config(command=lambda val, n=name, lbl=slider_value_label: self.update_filter_with_label(n, val, lbl))
+
+    def update_filter_with_label(self, name, val, label):
+        val = int(float(val))
+        label.config(text=f"{val}")
+        self.update_filter(name, val)
 
     def remove_checkbox(self, widget):
         name = widget.name
@@ -402,6 +436,18 @@ class GUI:
 
         else:
             messagebox.showwarning("Warning", "Dataset not found!")
+
+    def update_filter(self, name, cutoff_freq):  # update
+        print(cutoff_freq)
+        if cutoff_freq == 0:
+            self.data[name]['filtered'] = None
+            return
+        x, y = self.data[name]['original']
+        dft = np.fft.fft(y)
+        dft_filtered = dft.copy()
+        dft_filtered[cutoff_freq:len(dft) - cutoff_freq] = 0
+        y_filtered = np.real(np.fft.ifft(dft_filtered))
+        self.data[name]['filtered'] = (x, y_filtered)
 
     def show(self):
         self.root.mainloop()

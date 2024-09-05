@@ -1,4 +1,4 @@
-- Separating plotter from the main thread.
+- Investigation into plotter and sampler speed (threading):
 - Correcting the sampler thread such that it joins/terminates properly.
 - Implement Y-axis scaling, zeroing and toggling.
 - Variable filter frequency and type.

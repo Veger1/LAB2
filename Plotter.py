@@ -11,9 +11,6 @@ class Plotter:
         self.root = root
         self.gui = None
         self.data = {}
-        self.check_vars = {}  # Not needed
-        self.trend_vars = {}  # Not needed
-        self.offset_vars = {}  # Not needed
         self.filtered = {}
 
     def set_axes(self, ax1, ax2):
@@ -83,14 +80,6 @@ class Plotter:
         self.ax2.plot(x, a * x + b, label=f"Trend {name}: {a:.2f}x + {b:.2f}", linestyle='--')
         self.ax2.legend()
         self.ax2.figure.canvas.draw()
-
-    def update_filter(self, name, slider, slider_name):  # update
-        dft = np.fft.fft(self.data[name][1])
-        cutoff_freq = slider.get()
-        dft_filtered = dft.copy()
-        dft_filtered[cutoff_freq:len(dft) - cutoff_freq] = 0
-        y_filtered = np.real(np.fft.ifft(dft_filtered))
-        self.filtered[name][slider_name] = (self.data[name][0], y_filtered)
 
     def clear_plot1(self):
         if self.ax1 is not None:
