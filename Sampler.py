@@ -37,7 +37,7 @@ class Sampler:
             self.port = self.find_arduino_port()
             if self.port:
                 try:
-                    self.ser = serial.Serial(self.port, 19200, timeout=1)
+                    self.ser = serial.Serial(self.port, 19200, timeout=0.1)
                     self.serial_available = True
                     print("Serial port initialized")
                 except serial.SerialException:
@@ -97,38 +97,43 @@ class Sampler:
 
     def sample_data(self, duration=1):
         while not self.stop_event.is_set():
-            if self.ser.in_waiting > 0:
-                data = self.ser.read_until(b'\n')  # Read until newline character
-                # data = ser.read(ser.in_waiting)  # Read all available bytes
-                # print(data)
-                parts = data.split(b'\r')
-                if parts[0].startswith(b'\x80\x06\x83') and len(parts) > 1:
-                    xa = parts[0][3:-1].decode('ascii', errors='ignore')  # Skip first 3 and last byte
-                    # Remove any unwanted characters (non-numeric)
-                    cleaned_str = ''.join(filter(lambda x: x.isdigit() or x == '.', xa))
-                    try:
-                        xi = float(cleaned_str)  # Convert to float
-                        self.last_data = xi
-                        xi = xi - self.zero_point
-                        if self.flip_orientation:
-                            xi = -xi
-                    except ValueError:
-                        print("Error:", cleaned_str)
-                        continue  # Skip appending data if conversion fails
+            try:
+                if self.ser.in_waiting > 0:
+                    data = self.ser.read_until(b'\n')  # Read until newline character
+                    # data = ser.read(ser.in_waiting)  # Read all available bytes
+                    # print(data)
+                    parts = data.split(b'\r')
+                    if parts[0].startswith(b'\x80\x06\x83') and len(parts) > 1:
+                        xa = parts[0][3:-1].decode('ascii', errors='ignore')  # Skip first 3 and last byte
+                        # Remove any unwanted characters (non-numeric)
+                        cleaned_str = ''.join(filter(lambda x: x.isdigit() or x == '.', xa))
+                        try:
+                            xi = float(cleaned_str)  # Convert to float
+                            self.last_data = xi
+                            xi = xi - self.zero_point
+                            if self.flip_orientation:
+                                xi = -xi
+                        except ValueError:
+                            print("Error:", cleaned_str)
+                            continue  # Skip appending data if conversion fails
 
-                    try:
-                        bits = int(parts[1].strip())
-                        voltage = 2 * float(bits) * 0.1875
-                        yi = voltage / 50.0
-                    except ValueError:
-                        print("Error, no second part")
-                        continue
+                        try:
+                            bits = int(parts[1].strip())
+                            voltage = 2 * float(bits) * 0.1875
+                            yi = voltage / 50.0
+                        except ValueError:
+                            print("Error, no second part")
+                            continue
 
-                    try:
-                        self.data.append((xi, yi))
-                        self.plotter.update_plot(self.data)
-                    except Exception as e:
-                        print(f"Error in sampling thread: {e}")
+                        try:
+                            self.data.append((xi, yi))
+                            self.plotter.update_plot(self.data)
+                        except Exception as e:
+                            print(f"Error in sampling thread: {e}")
+            except serial.serialutil.SerialException:
+                self.stop_event.set()
+            except Exception:
+                self.stop_event.set()
 
     def get_data(self):
         return self.data
@@ -137,4 +142,4 @@ class Sampler:
         self.last_data = None
         self.data = []
         self.plotter.clear_plot1()
-        print("Data cleared")
+

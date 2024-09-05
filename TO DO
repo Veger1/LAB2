@@ -1,0 +1,8 @@
+- Separating plotter from the main thread.
+- Correcting the sampler thread such that it joins/terminates properly.
+- Implement Y-axis scaling, zeroing and toggling.
+- Variable filter frequency and type.
+- Separate filter plot from original signal plot function.
+- Automatic creation of measurement reports.
+
+- Complete the manual.

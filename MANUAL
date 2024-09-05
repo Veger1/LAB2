@@ -1,0 +1,25 @@
+SAMPLE SECTION
+    START: Begins sampling/logging of data. Whenever the LASER sensor sends out a measurement, the data is logged.
+            Frequency of data logging is determined by the LASER sensor. This button cannot be pressed if no arduino is connected.
+    STOP: stops sampling/logging of data.
+    CLEAR: clears the data log, but does not stop the data logging. Live data plot will be cleared.
+    CONNECT: Attempts to connects to the arduino. This button is disabled if the arduino is already connected. Do not use when two Arduinos are used simultaneously..
+
+X LIMITS:
+    MANUAL: Unchecked by default. When checked, the user can set the limits of the plot. The limits are set by the user in the text boxes to the right. If no limits are set, the plot will not autoscale.
+    MIN: Sets the minimum value of the plot.
+    MAX: Sets the maximum value of the plot.
+    <-->: Toggles the orientation of the distance measurement. Leave unchecked if distance should increase with distance to the sensor. Check if distance should decrease with distance to the sensor.
+    ZERO (0): Sets the zero point of the plot. The zero point is the point where the distance is zero. The zero point is displayed in the text box to the right and is the absolute distance to the LASER distance sensor. If no zero point is set, the plot will not have a zero point. To remove the zero point, set the zero point to 0 or leave empty and press TAB.
+
+SAVE:
+    ADD DATA: Adds the logged data to the data log. A dialog opens to give the data a name. Logged data can be saved multiple times under different names.
+    LOAD DATA: Loads previously saved data from a .csv file. If loaded data has a name which is already present in the 'added data' (see above), a new name can be given to said dataset. If no name is given, the data is not loaded.
+    SAVE DATA: Saves the datasets that have a checked 'save' box to a .csv file. A dialog opens to give the file a name and location. The data is saved in the same format as the loaded data.
+    PLOT DATA: Plots the datasets that have a checked 'save' box in the 'Saved Data' plot.
+
+ DATA: (all the checkboxes below do not take effect until either 'Save data' or 'Plot data' is pressed)
+    PLOT CHECKBOX: Check to plot the data. Uncheck to remove the data from the plot.
+    TREND CHECKBOX: Check to plot a trendline of the data. Uncheck to remove the trendline from the plot.
+    OFFSET CHECKBOX: Check to plot the data with an offset. Uncheck to remove the offset from the plot.
+    SAVE CHECKBOX: Check to save the data. Uncheck to remove the data from the saved data list.
