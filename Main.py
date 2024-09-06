@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox, simpledialog, filedialog
@@ -8,15 +9,17 @@ import numpy as np
 
 from Sampler import Sampler
 from Plotter import Plotter
+from Report import Report
 
 
 class MainApp:
     def __init__(self):
         self.root = tk.Tk()
-        self.plotter = Plotter(self.root)
-        self.sampler = Sampler(self.plotter)
-        self.gui = GUI(self.root, self.sampler, self.plotter)
-        self.plotter.set_axes(self.gui.ax1, self.gui.ax2)
+        self.plotter = Plotter(self.root)  # Initialize the plotter
+        self.sampler = Sampler(self.plotter)  # Initialize the sampler
+        self.report = Report()
+        self.gui = GUI(self.root, self.sampler, self.plotter, self.report)  # Initialize the GUI
+        self.plotter.set_axes(self.gui.ax1, self.gui.ax2)  # Pass the axes to the plotter
         self.plotter.gui = self.gui  # Pass the GUI instance to the plotter
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -24,7 +27,7 @@ class MainApp:
     def run(self):
         self.gui.show()
 
-    def on_closing(self):
+    def on_closing(self):  # Ensure the connection is closed before closing the app
         if messagebox.askokcancel("Quit", "Do you want to quit?"):
             if self.sampler.sampling:  # Ensure sampling is stopped
                 self.sampler.stop_sampling()
@@ -35,22 +38,23 @@ class MainApp:
 
 
 class GUI:
-    def __init__(self, window, sampler, plotter):
+    def __init__(self, window, sampler, plotter, report):
         self.root = window
         self.sampler = sampler
         self.plotter = plotter
+        self.report = report
         self.connection_established = False
 
         self.root.title("Measurement App")
 
         self.style = ttk.Style()
         self.style.configure('TFrame', background='white')
-        self.style.configure('Disabled.TFrame', background='light gray')
+        # self.style.configure('Disabled.TFrame', background='light gray')
         self.style.configure('TLabelframe', background='white')
         self.style.configure('TLabelframe.Label', background='white')
-        self.style.configure('Disabled.TLabelframe', background='light gray')
+        # self.style.configure('Disabled.TLabelframe', background='light gray')
         self.style.configure('TCheckbutton', background='white')
-        self.style.configure('TFrame.Label', background='green')
+        # self.style.configure('TFrame.Label', background='green')
 
         self.data = {}
         self.plot_vars = {}
@@ -59,6 +63,10 @@ class GUI:
         self.offset_entry = {}
         self.save_vars = {}
         self.datasets = []
+
+        # Tkinter works with 'frames' which are containers for other widgets/frames.These widgets/frames can be
+        # arranged using grid or pack geometry managers. The grid manager is used here to arrange the widgets in a
+        # grid layout. The pack manager is used to place frames relative to each other.
 
         self.mainframe = ttk.Frame(self.root, padding="10 10 10 10", borderwidth=2, relief="groove")
         self.mainframe.grid(column=1, row=0, rowspan=2, sticky=tk.NSEW)
@@ -98,15 +106,19 @@ class GUI:
         self.canvas2.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         self.ax2.set_title('Saved Data')
 
+        # Variables can be associated with widgets to store data. These variables can be used to store the state
+        # of e.g. a button.
+
         self.manual_limit_var = tk.IntVar(value=0)
         self.manual_limit = ttk.Checkbutton(self.plots, text="Manual", variable=self.manual_limit_var)
         self.manual_limit.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
 
         self.x_min_entry = ttk.Entry(self.plots, width=8)
         self.x_min_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
-        self.x_min_entry.bind("<FocusIn>", self.clear_placeholder)
-        self.x_min_entry.bind("<FocusOut>", self.add_placeholder)
-        self.add_placeholder(event=None, widget=self.x_min_entry, placeholder="min")
+        self.x_min_entry.bind("<FocusIn>", self.clear_placeholder)  # Bind the clear_placeholder function to the entry
+        self.x_min_entry.bind("<FocusOut>", self.add_placeholder)  # Bind the add_placeholder function to the entry
+        self.add_placeholder(event=None, widget=self.x_min_entry, placeholder="min")  # Add a placeholder to the
+        # entry during initialization
 
         self.x_max_entry = ttk.Entry(self.plots, width=8)
         self.x_max_entry.grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
@@ -115,7 +127,7 @@ class GUI:
         self.add_placeholder(event=None, widget=self.x_max_entry, placeholder="max")
 
         self.direction_var = tk.BooleanVar(value=False)
-        self.toggle_direction = ttk.Checkbutton(self.plots, text="<->", width=3, variable=self.direction_var, command= self.update_flip_orientation)
+        self.toggle_direction = ttk.Checkbutton(self.plots, text="<->", width=3, variable=self.direction_var, command=self.update_flip_orientation)
         self.toggle_direction.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
 
         self.zero_button = ttk.Button(self.plots, text="0", width=3, command=self.zero_measurement)
@@ -123,8 +135,8 @@ class GUI:
 
         self.zero_entry = ttk.Entry(self.plots, width=10)
         self.zero_entry.grid(row=0, column=5, padx=5, pady=5, sticky=tk.W)
-        self.zero_entry.bind("<FocusOut>", self.clear_zero_point)
-        self.clear_zero_point(event=None)
+        self.zero_entry.bind("<FocusOut>", self.clear_zero_point)  # Bind the clear_zero_point function to the entry
+        self.clear_zero_point(event=None)  # Clear the zero point entry during initialization
 
         self.connect_button = ttk.Button(self.measure, text="Connect", command=self.sampler.connect)
         self.connect_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
@@ -141,23 +153,29 @@ class GUI:
         self.add_data_button = ttk.Button(self.store, text="Add Data", command=self.add_data)
         self.add_data_button.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
 
-        self.load_data_button = ttk.Button(self.store, text="Load Data", command=self.load_data)
+        self.load_data_button = ttk.Button(self.store, text="Load", width=8, command=self.load_data)
         self.load_data_button.grid(row=1, column=2, padx=5, pady=5, sticky=tk.W)
 
-        self.save_button = ttk.Button(self.store, text="Save Data", command=self.save_data)
+        self.save_button = ttk.Button(self.store, text="Save", width=8, command=self.save_data)
         self.save_button.grid(row=1, column=3, padx=5, pady=5, sticky=tk.W)
 
-        self.plot_button = ttk.Button(self.store, text="Plot Data", command=self.plot_data)  # # #
+        self.plot_button = ttk.Button(self.store, text="Plot", width=8, command=self.plot_data)  # # #
         self.plot_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
 
-        self.checkbox_frame = tk.Frame(self.visual, bg='white')
+        self.report_button = ttk.Button(self.store, text="Report", width=8, command=self.save_measurement_report)
+        self.report_button.grid(row=1, column=5, padx=5, pady=5, sticky=tk.W)
+
+        self.checkbox_frame = ttk.Frame(self.visual)
         self.checkbox_frame.grid(row=1, column=0, sticky=tk.NSEW)
 
         self.visual.grid_rowconfigure(1, weight=1)
 
+        # Create a canvas and scrollbar to allow scrolling of the frame. A frame by itself cannot be scrolled but a
+        # canvas can. So a frame is placed inside a canvas to circumvent this limitation.
         self.canvas = tk.Canvas(self.checkbox_frame, bg='white')
         self.scrollbar = tk.Scrollbar(self.checkbox_frame, orient="vertical", command=self.canvas.yview)
-        self.scrollable_frame = tk.Frame(self.canvas)
+        self.scrollable_frame = ttk.Frame(self.canvas)
+        self.scrollable_frame.grid_columnconfigure(0, weight=1)
 
         self.scrollable_frame.bind(
             "<Configure>",
@@ -172,14 +190,17 @@ class GUI:
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
 
+        # Determines how the widgets are expanded when the window is resized.
         self.root.rowconfigure(0, weight=1)
         self.root.rowconfigure(1, weight=1)
         self.root.columnconfigure(0, weight=1)
         self.root.columnconfigure(1, weight=0)
 
-        self.header_widget = tk.Frame(self.visual)
+        self.header_widget = ttk.Frame(self.visual)
         self.header_widget.grid(column=0, row=0, sticky=tk.NSEW)
 
+        # Configure the column width of the header widget to better match the checkboxes underneath. Since the
+        # checkboxes and header widget are different widgets, they size differently.
         self.header_widget.grid_columnconfigure(0, minsize=80)
         self.header_widget.grid_columnconfigure(1, minsize=50)
         self.header_widget.grid_columnconfigure(2, minsize=50)
@@ -187,19 +208,19 @@ class GUI:
         self.header_widget.grid_columnconfigure(4, minsize=50)
         self.header_widget.grid_columnconfigure(5, minsize=80)
 
-        self.name_label = tk.Label(self.header_widget, width=8, text="Name")
+        self.name_label = ttk.Label(self.header_widget, width=8, text="Name", background='white')
         self.name_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
 
-        self.plot_label = tk.Label(self.header_widget, width=5, text="Plot")
+        self.plot_label = ttk.Label(self.header_widget, width=5, text="Plot", background='white')
         self.plot_label.grid(row=0, column=1, padx=5, pady=5, sticky="w")
 
-        self.trend_label = tk.Label(self.header_widget, width=5, text="Trend")
+        self.trend_label = ttk.Label(self.header_widget, width=5, text="Trend", background='white')
         self.trend_label.grid(row=0, column=2, padx=5, pady=5, sticky="w")
 
-        self.offset_label = tk.Label(self.header_widget, width=5, text="Offset")
+        self.offset_label = ttk.Label(self.header_widget, width=5, text="Offset", background='white')
         self.offset_label.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 
-        self.save_label = tk.Label(self.header_widget, width=5, text="Save")
+        self.save_label = ttk.Label(self.header_widget, width=5, text="Save", background='white')
         self.save_label.grid(row=0, column=4, padx=5, pady=5, sticky="w")
 
         self.filter_button = ttk.Button(self.filtering, text="Filter", command=self.lowpass)
@@ -208,12 +229,13 @@ class GUI:
         # Call here functions that are ran by default
         self.check_connection_status()  # Initialize connection checker
 
-    def clear_placeholder(self, event):
+    def clear_placeholder(self, event):  # Clear the placeholder text when the entry is clicked
         if event.widget.get() in ["min", "max"]:
             event.widget.delete(0, tk.END)
             event.widget.config(foreground='black')
 
-    def add_placeholder(self, event, widget=None, placeholder=None):
+    def add_placeholder(self, event, widget=None, placeholder=None):  # Inserts a placeholder text when the entry is
+        # empty for visual aid
         if widget is None:
             widget = event.widget
         if not widget.get():
@@ -222,7 +244,7 @@ class GUI:
             widget.insert(0, placeholder)
             widget.config(foreground='grey')
 
-    def zero_measurement(self):
+    def zero_measurement(self):  # Set the zero point to the current absolute value.
         self.sampler.set_zero_point()
         if self.sampler.data:
             self.zero_entry.delete(0, tk.END)
@@ -234,10 +256,11 @@ class GUI:
             self.zero_entry.insert(0, '0')
             self.zero_entry.config(foreground='grey')
 
-    def update_flip_orientation(self):
+    def update_flip_orientation(self):  # Flips the orientation of the distance axis
         self.sampler.flip_orientation = self.direction_var.get()
 
-    def check_connection_status(self):
+    def check_connection_status(self):  # Check the connection with the arduino once every second, disables core
+        # functions if not connected
         if self.sampler.is_connected():
             if not self.connection_established:
                 self.start_button.config(state=tk.NORMAL)
@@ -264,7 +287,8 @@ class GUI:
     def clear_sampler(self):
         self.sampler.clear_data()
 
-    def add_data(self):
+    def add_data(self):  # Add the data to the data dictionary, each name has an original dataset along with a 'None'
+        # filtered set
         if self.sampler.get_data():
             name = simpledialog.askstring("Input", "Enter measurement name:")
             if not name:
@@ -282,16 +306,27 @@ class GUI:
             self.data[name] = {'original': (list(x_data), list(y_data)), 'filtered': None}
             self.add_checkbox(name)
 
-    def add_checkbox(self, name):
+    def add_checkbox(self, name):  # To dynamically add datasets to the data frame, each dataset is placed in a frame
+        # along with its own checkboxes/entries. Pack manager is used since it is better at stacking widget without
+        # having to remember the row/column.
+
         # Create dataset widget
-        widget = tk.Frame(self.scrollable_frame)
+        widget = tk.Frame(self.scrollable_frame, bg='lightgreen')
         widget.pack(pady=5)
         self.datasets.append(widget)
+
+        # Configure the column width of the dataset widget to better match the header widget.
+        widget.grid_columnconfigure(0, minsize=80)
+        widget.grid_columnconfigure(1, minsize=50)
+        widget.grid_columnconfigure(2, minsize=50)
+        widget.grid_columnconfigure(3, minsize=50)
+        widget.grid_columnconfigure(4, minsize=50)
+        widget.grid_columnconfigure(5, minsize=80)
 
         # Store the dataset name as an attribute of the widget
         widget.name = name
 
-        # Initialize boolean variables
+        # Initialize variables.
         self.plot_vars[name] = tk.BooleanVar()
         self.trend_vars[name] = tk.BooleanVar()
         self.offset_entry[name] = tk.StringVar(value='0')
@@ -320,16 +355,16 @@ class GUI:
         # Add slider for filtering frequency
         slider_value = tk.IntVar(value=0)
         # slider = ttk.Scale(widget, from_=0, to=10, orient=tk.HORIZONTAL, variable=slider_value)
-        slider = tk.Scale(widget, from_=0, to=10, orient=tk.HORIZONTAL, variable=slider_value, resolution=1)
+        slider = tk.Scale(widget, from_=0, to=50, orient=tk.HORIZONTAL, variable=slider_value, resolution=1)
         slider.grid(row=1, column=2, columnspan=5,padx=5, pady=0, sticky="w")
-        slider_value_label = ttk.Label(widget, text="0")
-        slider_value_label.grid(row=1, column=1, padx=5, pady=0, sticky="w")
+        slider_value_label = ttk.Label(widget, text="0")  # Redundant
+        slider_value_label.grid(row=1, column=1, padx=5, pady=0, sticky="w")  # Redundant
         slider.config(command=lambda val, n=name, lbl=slider_value_label: self.update_filter_with_label(n, val, lbl))
+        slider.bind("<ButtonRelease-1>", lambda event, n=name, val=slider_value: self.update_filter(n, val.get()))
 
-    def update_filter_with_label(self, name, val, label):
+    def update_filter_with_label(self, name, val, label):  # Redundant
         val = int(float(val))
         label.config(text=f"{val}")
-        self.update_filter(name, val)
 
     def remove_checkbox(self, widget):
         name = widget.name
@@ -348,7 +383,7 @@ class GUI:
         del self.offset_entry[name]
         del self.save_vars[name]
 
-    def save_data(self):
+    def save_data(self):  # Save the data whose 'save' checkbox is checked.
         selected_data = {name: self.data[name] for name, var in self.save_vars.items() if var.get()}
         if not selected_data:
             messagebox.showwarning("Warning", "No data selected!")
@@ -402,18 +437,33 @@ class GUI:
 
         for name, datasets in loaded_data.items():
             if name in self.data:
-                new_name = simpledialog.askstring("Input", f"Name {name} already exists! Enter a new name:")
-                if not new_name:
-                    messagebox.showwarning("Warning", f"Dataset {name} was not loaded.")
-                    continue
-                name = new_name
+                # Keep prompting until a valid name is provided or the user cancels
+                while True:
+                    # Pass the parent window to the dialog
+                    new_name = simpledialog.askstring("Input", f"Name {name} already exists! Enter a new name:",
+                                                      parent=self.root)
 
-            self.data[name] = datasets
-            self.add_checkbox(name)
+                    # Handle case when dialog is canceled or closed
+                    if new_name is None:
+                        messagebox.showwarning("Warning", f"Dataset {name} was not loaded.")
+                        break  # Exit the loop and continue with the next item
+
+                    # Check for duplicate or empty input
+                    if new_name in self.data or not new_name.strip():
+                        messagebox.showwarning("Warning", f"Invalid input. Please enter a unique name.")
+                        continue  # Prompt again for valid input
+
+                    name = new_name  # Assign the new valid name
+                    self.data[name] = datasets
+                    self.add_checkbox(name)
+                    break
+            else:  # If no duplicate name is found, add the dataset
+                self.data[name] = datasets
+                self.add_checkbox(name)
 
         messagebox.showinfo("Success", "Data loaded successfully!")
 
-    def plot_data(self):
+    def plot_data(self):  # Save the data whose 'plot' checkbox is checked.
         selected_data = {name: self.data[name] for name, var in self.plot_vars.items() if var.get()}
         if not selected_data:
             messagebox.showwarning("Warning", "No data selected!")
@@ -421,7 +471,7 @@ class GUI:
 
         self.plotter.plot_data(selected_data, self.offset_entry, self.trend_vars)
 
-    def lowpass(self):
+    def lowpass(self):  # Outdated function, completely replaced by 'update_filter'. May still be useful for reference
         name = simpledialog.askstring("Input", f"Dataset:")
         if name in self.data:
             x, y = self.data[name]['original']
@@ -437,8 +487,8 @@ class GUI:
         else:
             messagebox.showwarning("Warning", "Dataset not found!")
 
-    def update_filter(self, name, cutoff_freq):  # update
-        print(cutoff_freq)
+    def update_filter(self, name, cutoff_freq):  # Update the filter frequency for a dataset. Function is called when
+        # slider is unclicked
         if cutoff_freq == 0:
             self.data[name]['filtered'] = None
             return
@@ -448,6 +498,16 @@ class GUI:
         dft_filtered[cutoff_freq:len(dft) - cutoff_freq] = 0
         y_filtered = np.real(np.fft.ifft(dft_filtered))
         self.data[name]['filtered'] = (x, y_filtered)
+
+    def save_measurement_report(self):
+        save_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF files", "*.pdf")])
+        if not save_path:
+            return
+
+        temp_plot_path = 'temp_plot.png'
+        self.fig2.savefig(temp_plot_path, format='png')
+        self.report.create_report(save_path)
+        os.remove(temp_plot_path)
 
     def show(self):
         self.root.mainloop()

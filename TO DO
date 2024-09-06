@@ -1,8 +1,10 @@
-- Investigation into plotter and sampler speed (threading):
 - Correcting the sampler thread such that it joins/terminates properly.
 - Implement Y-axis scaling, zeroing and toggling.
 - Variable filter frequency and type.
 - Separate filter plot from original signal plot function.
 - Automatic creation of measurement reports.
+- Investigate blitting or some other alternative for faster plotting.
+- Plotting relative to a reference measurement.
+- Live plotting relative to a reference measurement.
 
 - Complete the manual.

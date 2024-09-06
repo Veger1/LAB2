@@ -9,7 +9,7 @@ class Sampler:
         self.ser = None
         self.sampling = False
         self.data = []
-        self.last_data = None
+        self.last_data = None  # Last data point for setting zero point
         self.flip_orientation = False
         self.thread = None
         self.plotter = plotter
@@ -24,7 +24,7 @@ class Sampler:
             print("Zero point set", self.last_data)
             self.zero_point = self.last_data
 
-    def find_arduino_port(self):
+    def find_arduino_port(self):  # Automatically find the Arduino port
         ports = serial.tools.list_ports.comports()
         for port, desc, hwid in ports:
             # Check if the description or hardware ID matches Arduino
@@ -32,7 +32,7 @@ class Sampler:
                 return port
         return None
 
-    def connect(self):
+    def connect(self):  # Connect to the Arduino if 'connect' button is pressed.
         if self.port is None:
             self.port = self.find_arduino_port()
             if self.port:
@@ -47,7 +47,7 @@ class Sampler:
                 print("Arduino not found on any port")
                 self.serial_available = False
 
-    def is_connected(self):
+    def is_connected(self):  # Possibly redundant but works
         if self.port is not None:
             ports = serial.tools.list_ports.comports()
             for port, desc, hwid in ports:
@@ -63,7 +63,7 @@ class Sampler:
 
     def start_sampling(self):
         try:
-            self.ser.write(b'G')  # Send G to start mySerial
+            self.ser.write(b'G')   # Send 'G' to start Serial1 (hardware Serial with Laser)
         except AttributeError:
             messagebox.showinfo("Failed", "Not connected!")
             self.sampling = False
@@ -72,14 +72,15 @@ class Sampler:
             self.sampling = False
         else:
             self.sampling = True
-            self.stop_event.clear()
-            self.thread = threading.Thread(target=self.sample_data, args=(self.stop_event,))
+            self.stop_event.clear()  # Clear the stop event
+            self.thread = threading.Thread(target=self.sample_data, args=(self.stop_event,))  # Create a new thread
+            # with the sample_data function as target and stops if stop_event is set.
             self.thread.start()
         return self.sampling
 
     def stop_sampling(self):
         try:
-            self.ser.write(b'S')  # Send S to stop mySerial
+            self.ser.write(b'S')  # Send 'S' to stop Serial1 (hardware Serial with Laser)
         except AttributeError:
             pass
         except serial.serialutil.SerialException:
@@ -88,21 +89,20 @@ class Sampler:
             self.sampling = False
             self.stop_event.set()
             if self.thread is not None:
-                self.thread.join(timeout=1)
+                self.thread.join(timeout=1)  # Give the sampling thread 1 second to finish. GUI is unresponsive
+                # during this time.
                 live = self.thread.is_alive()
                 if live:
                     print("live")
                 else:
                     print("dead")
 
-    def sample_data(self, duration=1):
+    def sample_data(self, duration=1):  # Runs continuously until stop_event is set.
         while not self.stop_event.is_set():
             try:
                 if self.ser.in_waiting > 0:
                     data = self.ser.read_until(b'\n')  # Read until newline character
-                    # data = ser.read(ser.in_waiting)  # Read all available bytes
-                    # print(data)
-                    parts = data.split(b'\r')
+                    parts = data.split(b'\r')  # X and Y data are separated by '\r'
                     if parts[0].startswith(b'\x80\x06\x83') and len(parts) > 1:
                         xa = parts[0][3:-1].decode('ascii', errors='ignore')  # Skip first 3 and last byte
                         # Remove any unwanted characters (non-numeric)
@@ -110,8 +110,8 @@ class Sampler:
                         try:
                             xi = float(cleaned_str)  # Convert to float
                             self.last_data = xi
-                            xi = xi - self.zero_point
-                            if self.flip_orientation:
+                            xi = xi - self.zero_point  # Subtract zero point
+                            if self.flip_orientation:  # Flip orientation if needed
                                 xi = -xi
                         except ValueError:
                             print("Error:", cleaned_str)
@@ -142,4 +142,3 @@ class Sampler:
         self.last_data = None
         self.data = []
         self.plotter.clear_plot1()
-

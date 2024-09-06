@@ -1,0 +1,4 @@
+# Ignore IDE-specific files
+workspace.xml
+.idea/workspace.xml
+*

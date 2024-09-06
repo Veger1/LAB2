@@ -24,17 +24,17 @@ class Plotter:
         self.ax2.set_xlabel('Distance (m)')
         self.ax2.set_ylabel('Displacement (µm)')
 
-    def update_plot(self, new_data):  # Schedule update_plot in the main thread.
+    def update_plot(self, new_data):  # Schedule update_plot in the main thread. Update_plot is called by the sampler
+        # thread.
         self.root.after(0, self._update_plot, new_data)
 
     def _update_plot(self, new_data):
         x, y = zip(*new_data)
         self.hl.set_xdata(x)
         self.hl.set_ydata(y)
-        self.ax1.figure.canvas.draw()
         self.update_limit()
 
-    def update_limit(self):
+    def update_limit(self):  # Handles X-limit changes.
         if self.gui.manual_limit_var.get():
             try:
                 x_min = float(self.gui.x_min_entry.get())
@@ -47,9 +47,9 @@ class Plotter:
             self.ax1.set_ylim(auto=True)
             self.ax1.relim()  # Recalculate limits
             self.ax1.autoscale_view()
-        self.ax1.figure.canvas.draw()
+        self.ax1.figure.canvas.draw()  # Redraw the WHOLE canvas
 
-    def plot_data(self, selected_data, offset_entry, trend_vars):
+    def plot_data(self, selected_data, offset_entry, trend_vars):  # Plot selected data
         if self.ax2 is None:
             return
 
