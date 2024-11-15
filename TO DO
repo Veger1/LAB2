@@ -1,4 +1,5 @@
 - Correcting the sampler thread such that it joins/terminates properly.
+
 - Implement Y-axis scaling, zeroing and toggling.
 - Variable filter frequency and type.
 - Separate filter plot from original signal plot function.
@@ -8,3 +9,9 @@
 - Live plotting relative to a reference measurement.
 
 - Complete the manual.
+
+nearest neighbour
+travel
+repeatability
+flatness of travel
+straightness of travel each axis
