@@ -22,13 +22,15 @@ class Plotter:
         self.sample_cutoff = 100
 
 
-    def set_axes(self):
-        self.ax1.set_title('Live Data')
+    def set_ax1(self):
         self.ax1.set_xlabel('Distance (m)')
         self.ax1.set_ylabel('Displacement (µm)')
-        self.ax2.set_title('Saved Data')
+        self.ax1.set_title('Live Data')
+
+    def set_ax2(self):
         self.ax2.set_xlabel('Distance (m)')
         self.ax2.set_ylabel('Displacement (µm)')
+        self.ax2.set_title('Saved Data')
 
 
     def update_limit(self):  # Handles X-limit changes.
@@ -84,17 +86,13 @@ class Plotter:
             self.line, = self.ax1.plot([], [])
             self.x_data, self.y_data = [], []
             self.datas.clear_live_data()
-            self.ax1.set_title('Live Data')
-            self.ax1.set_xlabel('Distance (m)')
-            self.ax1.set_ylabel('Displacement (µm)')
+            self.set_ax1()
             self.ax1.figure.canvas.draw()
 
     def clear_plot2(self):
         if self.ax2 is not None:
             self.ax2.clear()
-            self.ax2.set_title('Saved Data')
-            self.ax2.set_xlabel('Distance (m)')
-            self.ax2.set_ylabel('Displacement (µm)')
+            self.set_ax2()
             self.ax2.figure.canvas.draw()
 
     def updater(self, i):
@@ -134,4 +132,5 @@ class Plotter:
             print("stop")
             self.ani.event_source.stop()
 
-
+    def relative_plot(self, x, y):
+        

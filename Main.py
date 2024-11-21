@@ -37,6 +37,11 @@ class MainApp:
             raise SystemExit
 
 
+if __name__ == "__main__":
+    app = MainApp()
+    app.run()
+
+
 class GUI:
     def __init__(self, window, sampler, plotter, report):
         self.root = window
@@ -511,8 +516,3 @@ class GUI:
 
     def show(self):
         self.root.mainloop()
-
-
-if __name__ == "__main__":
-    app = MainApp()
-    app.run()
