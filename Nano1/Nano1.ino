@@ -3,7 +3,7 @@
 
 Adafruit_ADS1115 ads; // Create an instance of the ADS1115
 
-const int ledPin = 13; // Pin 13 is the onboard LED on many Arduino boards
+const int ledPin = 13; // Pin 13 is the onboard LED on many Arduino boards, remove
 
 
 byte continu[] = {0x80, 0x06, 0x03, 0x77}; // Continuous measurement
