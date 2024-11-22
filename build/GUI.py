@@ -211,7 +211,7 @@ class GUI:
 
     def zero_measurement(self):  # Set the zero point to the current absolute value.
         self.sampler.set_zero_point()
-        if self.sampler.data:
+        if self.sampler.last_data:
             self.zero_entry.delete(0, tk.END)
             self.zero_entry.insert(0, str(self.sampler.last_data))
 
@@ -232,7 +232,7 @@ class GUI:
                 self.connection_established = True
             # self.measure.configure(style='TLabelframe')
         else:
-            # self.start_button.config(state=tk.DISABLED)
+            self.start_button.config(state=tk.DISABLED)
             self.connection_established = False
             # self.measure.configure(style='Disabled.TLabelframe')  # Indicate that there's no connection
 
@@ -263,8 +263,12 @@ class GUI:
     def add_data(self):  # Add the data to the data dictionary, each name has an original dataset along with a 'None'
         # filtered set
         name = self.data_holder.add_data()
+        print(name)
         if name is not None:
             self.add_checkbox(name)
+
+    def save_data(self):
+        self.data_holder.save_data()
 
     def add_checkbox(self, name):  # To dynamically add datasets to the data frame, each dataset is placed in a frame
         # along with its own checkboxes/entries. Pack manager is used since it is better at stacking widget without
@@ -327,46 +331,8 @@ class GUI:
         label.config(text=f"{val}")
 
     def remove_checkbox(self, widget):
-        name = widget.name
-
-        # Remove dataset from self.data
-        if name in self.data:
-            del self.data[name]
-
-        # Destroy the widget and remove self.datasets
+        self.data_holder.remove_associated_data(widget)
         widget.destroy()
-        self.datasets.remove(widget)
-
-        # Cleanup associated variables
-        del self.plot_vars[name]
-        del self.trend_vars[name]
-        del self.offset_entry[name]
-        del self.save_vars[name]
-
-    def save_data(self):  # Save the data whose 'save' checkbox is checked.
-        selected_data = {name: self.data[name] for name, var in self.save_vars.items() if var.get()}
-        if not selected_data:
-            messagebox.showwarning("Warning", "No data selected!")
-            return
-
-        save_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
-        if not save_path:
-            return
-
-        with open(save_path, 'w', newline='') as f:
-            writer = csv.writer(f)
-            for name, datasets in selected_data.items():
-                x_orig, y_orig = datasets['original']
-                writer.writerow([name, 'X'] + x_orig)
-                writer.writerow([name, 'Y'] + y_orig)
-
-                # Check if 'filtered' key exists and save it if present
-                if 'filtered' in datasets and datasets['filtered']:
-                    x_filt, y_filt = datasets['filtered']
-                    writer.writerow([name, 'Filtered_X'] + x_filt)
-                    writer.writerow([name, 'Filtered_Y'] + y_filt)
-
-        messagebox.showinfo("Success", "Data saved successfully!")
 
     def load_data(self):
         self.data_holder.load_data()
@@ -391,6 +357,9 @@ class GUI:
         self.fig2.savefig(temp_plot_path, format='png')
         self.report.create_report(save_path)
         os.remove(temp_plot_path)
+
+    def lowpass(self):
+        return
 
     def show(self):
         self.root.mainloop()

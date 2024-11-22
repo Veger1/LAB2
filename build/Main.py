@@ -23,6 +23,7 @@ class MainApp:
         self.report = Report()
         self.gui = GUI(self.root, self.sampler, self.plotter, self.report, self.data)
         self.data.set_gui(self.gui)
+        self.plotter.set_gui(self.gui)
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 

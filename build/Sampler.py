@@ -24,7 +24,7 @@ class Sampler:
         self.stop_event = threading.Event()
 
     def set_zero_point(self):
-        if self.data:
+        if self.data_holder.live_data:
             print("Zero point set", self.last_data)
             self.zero_point = self.last_data
 
@@ -155,5 +155,9 @@ class Sampler:
         while not stop_event.is_set():
             y = np.sin(x)
             x += 0.1
-            self.in_queue.put((x, y))
+            self.last_data = x
+            xi = x - self.zero_point  # Subtract zero point
+            if self.flip_orientation:  # Flip orientation if needed
+                xi = -xi
+            self.in_queue.put((xi, y))
             sleep(0.1)

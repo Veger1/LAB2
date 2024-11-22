@@ -1,7 +1,6 @@
 import csv
 from queue import Queue
 from tkinter import simpledialog, messagebox, filedialog
-
 import numpy as np
 
 class Data:
@@ -32,9 +31,25 @@ class Data:
     def get_live_data(self):
         return self.live_data
 
+    def remove_associated_data(self, widget):
+        name = widget.name
+
+        # Remove dataset from self.data
+        if name in self.data:
+            del self.data[name]
+
+        # Destroy the widget and remove self.datasets
+        self.datasets.remove(widget)
+
+        # Cleanup associated variables
+        del self.plot_vars[name]
+        del self.trend_vars[name]
+        del self.offset_entry[name]
+        del self.save_vars[name]
+
     def add_data(self):  # Add the data to the data dictionary, each name has an original dataset along with a 'None'
         # filtered set
-        if self.get_data():
+        if self.get_live_data():
             name = simpledialog.askstring("Input", "Enter measurement name:")
             if not name:
                 return None
@@ -54,7 +69,7 @@ class Data:
 
     def update_filter(self, name, cutoff_freq):  # Update the filter frequency for a dataset. Function is called when
         # slider is unclicked
-        if cutoff_freq == 0:
+        if cutoff_freq <= 0:
             self.data[name]['filtered'] = None
             return
         x, y = self.data[name]['original']
@@ -63,6 +78,31 @@ class Data:
         dft_filtered[cutoff_freq:len(dft) - cutoff_freq] = 0
         y_filtered = np.real(np.fft.ifft(dft_filtered))
         self.data[name]['filtered'] = (x, y_filtered)
+
+    def save_data(self):  # Save the data whose 'save' checkbox is checked.
+        selected_data = {name: self.data[name] for name, var in self.save_vars.items() if var.get()}
+        if not selected_data:
+            messagebox.showwarning("Warning", "No data selected!")
+            return
+
+        save_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
+        if not save_path:
+            return
+
+        with open(save_path, 'w', newline='') as f:
+            writer = csv.writer(f)
+            for name, datasets in selected_data.items():
+                x_orig, y_orig = datasets['original']
+                writer.writerow([name, 'X'] + x_orig)
+                writer.writerow([name, 'Y'] + y_orig)
+
+                # Check if 'filtered' key exists and save it if present
+                if 'filtered' in datasets and datasets['filtered']:
+                    x_filt, y_filt = datasets['filtered']
+                    writer.writerow([name, 'Filtered_X'] + x_filt)
+                    writer.writerow([name, 'Filtered_Y'] + y_filt)
+
+        messagebox.showinfo("Success", "Data saved successfully!")
 
     def extend_data(self, name):
         if name in self.data:

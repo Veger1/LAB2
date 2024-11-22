@@ -21,6 +21,8 @@ class Plotter:
         self.filtered = {}
         self.sample_cutoff = 100
 
+    def set_gui(self, gui):
+        self.gui = gui
 
     def set_ax1(self):
         self.ax1.set_xlabel('Distance (m)')
@@ -38,15 +40,17 @@ class Plotter:
             try:
                 x_min = float(self.gui.x_min_entry.get())
                 x_max = float(self.gui.x_max_entry.get())
-                self.ax1.set_xlim(x_min, x_max)
+                if (x_min, x_max) != self.ax1.get_xlim():
+                    self.ax1.set_xlim(x_min, x_max)
+                    self.ax1.figure.canvas.draw()
             except ValueError:
-                pass
+                pass  # Will freeze limits if x_min and x_max are not valid floats
         else:
             self.ax1.set_xlim(auto=True)
             self.ax1.set_ylim(auto=True)
             self.ax1.relim()  # Recalculate limits
             self.ax1.autoscale_view()
-        self.ax1.figure.canvas.draw()  # Redraw the WHOLE canvas
+            self.ax1.figure.canvas.draw()  # Redraw the WHOLE canvas
 
     def plot_data(self, selected_data, offset_entry, trend_vars):  # Plot selected data
         if self.ax2 is None:
@@ -108,9 +112,8 @@ class Plotter:
             self.y_data = self.y_data[-self.sample_cutoff:]
 
         self.line.set_data(self.x_data, self.y_data)
-        self.ax1.relim()
-        self.ax1.autoscale_view()
-        print(self.line)
+        self.update_limit()
+        # self.ax1.relim(), self.ax1.autoscale_view() ,print(self.line)
         return self.line,
 
     def start(self):
@@ -132,5 +135,5 @@ class Plotter:
             print("stop")
             self.ani.event_source.stop()
 
-    def relative_plot(self, x, y):
+    # def relative_plot(self, x, y):
         
