@@ -65,43 +65,32 @@ class Sampler:
             self.ser.close()
             self.ser = None
 
-    def start_sampling(self):
+    def start_sampler(self):
         try:
-            self.ser.write(b'G')   # Send 'G' to start Serial1 (hardware Serial with Laser)
-        except AttributeError:
-            messagebox.showinfo("Failed", "Not connected!")
-            self.sampling = False
-        except serial.serialutil.SerialException:
-            messagebox.showinfo("Failed", "Not connected!")
-            self.sampling = False
+            self.ser.write(b'G')
+        except AttributeError as e1:
+            print(f"AttributeError: {e1}")
+        except serial.serialutil.SerialException as e2:
+            print(f"SerialException: {e2}")
         else:
             self.sampling = True
             self.stop_event.clear()  # Clear the stop event
-            self.thread = threading.Thread(target=self.sampler, args=(self.stop_event,))  # Create a new thread
-            # with the sample_data function as target and stops if stop_event is set.
+            self.thread = threading.Thread(target=self.sample_data, args=(self.stop_event,), daemon=True)
             self.thread.start()
-        return self.sampling
-
-    def start_sampler(self):
-        self.sampling = True
-        self.stop_event.clear()  # Clear the stop event
-        self.thread = threading.Thread(target=self.sampler, args=(self.stop_event,), daemon=True)  # Create a new thread
-        # with the sample_data function as target and stops if stop_event is set.
-        self.thread.start()
         return self.sampling
 
     def stop_sampling(self):
         try:
             self.ser.write(b'S')  # Send 'S' to stop Serial1 (hardware Serial with Laser)
-        except AttributeError:
-            pass
-        except serial.serialutil.SerialException:
-            pass
+        except AttributeError as e1:
+            print(f"AttributeError: {e1}")
+        except serial.serialutil.SerialException as e2:
+            print(f"SerialException: {e2}")
         finally:
             self.sampling = False
             self.stop_event.set()
             if self.thread is not None:
-                self.thread.join(timeout=1)  # Give the sampling thread 1 second to finish. GUI is unresponsive
+                self.thread.join(timeout=0.2)  # Give the sampling thread 1 second to finish. GUI is unresponsive
                 # during this time.
                 live = self.thread.is_alive()
                 if live:
@@ -114,11 +103,16 @@ class Sampler:
             try:
                 if self.ser.in_waiting > 0:
                     data = self.ser.read_until(b'\n')  # Read until newline character
-                    parts = data.split(b'\r')  # X and Y data are separated by '\r'
-                    if parts[0].startswith(b'\x80\x06\x83') and len(parts) > 1:
+                    print(data)
+                    parts = data.split(b'\r')
+                    if parts[0].startswith(b'0\x80\x06\x83') and len(parts) > 1:
+                        print("Good format")
                         xa = parts[0][3:-1].decode('ascii', errors='ignore')  # Skip first 3 and last byte
                         # Remove any unwanted characters (non-numeric)
                         cleaned_str = ''.join(filter(lambda x: x.isdigit() or x == '.', xa))
+                        """
+                        ARDUINO CODE SHOULD BE MODIFIED TO SEND DATA AS BYTES/CHARACTERS
+                        """
                         try:
                             xi = float(cleaned_str)  # Convert to float
                             self.last_data = xi
@@ -133,17 +127,17 @@ class Sampler:
                             bits = int(parts[1].strip())
                             voltage = 2 * float(bits) * 0.1875
                             yi = voltage / 50.0
+                            print(xi, yi)
+                            self.in_queue.put((xi, yi))
                         except ValueError:
                             print("Error, no second part")
                             continue
-
-                        try:
-                            self.data.append((xi, yi))
-                            self.plotter.update_plot(self.data)
                         except Exception as e:
-                            print(f"Error in sampling thread: {e}")
+                            print(f"Error: {e}")
+                            continue
             except serial.serialutil.SerialException:
                 self.stop_event.set()
+                # Needs some extra handling here
             except Exception:
                 self.stop_event.set()
 

@@ -63,13 +63,13 @@ class GUI:
         self.canvas1 = FigureCanvasTkAgg(self.fig1, master=self.plot_frame1)
         self.canvas1.draw()
         self.canvas1.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.ax1.set_title('Data')
+        # self.ax1.set_title('Data')
 
         self.fig2, self.ax2 = plotter.fig2, plotter.ax2
         self.canvas2 = FigureCanvasTkAgg(self.fig2, master=self.plot_frame2)
         self.canvas2.draw()
         self.canvas2.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        self.ax2.set_title('Saved Data')
+        # self.ax2.set_title('Saved Data')
 
         # Variables can be associated with widgets to store data. These variables can be used to store the state
         # of e.g. a button.
@@ -263,7 +263,6 @@ class GUI:
     def add_data(self):  # Add the data to the data dictionary, each name has an original dataset along with a 'None'
         # filtered set
         name = self.data_holder.add_data()
-        print(name)
         if name is not None:
             self.add_checkbox(name)
 
