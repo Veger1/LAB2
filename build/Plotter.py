@@ -8,7 +8,7 @@ from matplotlib.animation import FuncAnimation
 
 class Plotter:
     def __init__(self, root, data):
-        self.datas = data
+        self.data_holder = data
         self.out_queue = data.queue
         self.fig1, self.ax1 = plt.subplots()
         self.fig2, self.ax2 = plt.subplots()
@@ -19,7 +19,9 @@ class Plotter:
         self.x_data, self.y_data = [], []
         self.data = {}
         self.filtered = {}
-        self.sample_cutoff = 100
+        self.sample_cutoff = 100000
+        self.set_ax1()
+        self.set_ax2()
 
     def set_gui(self, gui):
         self.gui = gui
@@ -89,7 +91,7 @@ class Plotter:
             self.ax1.clear()
             self.line, = self.ax1.plot([], [])
             self.x_data, self.y_data = [], []
-            self.datas.clear_live_data()
+            self.data_holder.clear_live_data()
             self.set_ax1()
             self.ax1.figure.canvas.draw()
 
@@ -102,10 +104,14 @@ class Plotter:
     def updater(self, i):
         while not self.out_queue.empty():
             new_data = self.out_queue.get()
+            if self.gui.get_reference():
+                new_data = self.data_holder.calc_reference(new_data)
+            if not new_data:
+                continue
             self.x_data.append(new_data[0])
             self.y_data.append(new_data[1])
             print(new_data)
-            self.datas.live_data.append((new_data[0], new_data[1]))
+            self.data_holder.live_data.append((new_data[0], new_data[1]))
 
         if len(self.x_data) > self.sample_cutoff:
             self.x_data = self.x_data[-self.sample_cutoff:]
@@ -113,6 +119,7 @@ class Plotter:
 
         self.line.set_data(self.x_data, self.y_data)
         self.update_limit()
+        self.update_sample_count(len(self.x_data), len(self.data_holder.live_data))
         # self.ax1.relim(), self.ax1.autoscale_view() ,print(self.line)
         return self.line,
 
@@ -135,5 +142,5 @@ class Plotter:
             print("stop")
             self.ani.event_source.stop()
 
-    # def relative_plot(self, x, y):
-        
+    def update_sample_count(self, count, total_count):
+        self.gui.update_sample_count(count, total_count)

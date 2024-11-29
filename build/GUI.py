@@ -16,6 +16,8 @@ class GUI:
         self.report = report
         self.data_holder = data
         self.connection_established = False
+        self.sample_count = 0
+        self.reference = None
 
         self.root.title("Measurement App")
 
@@ -48,7 +50,7 @@ class GUI:
         self.visual = ttk.Labelframe(self.mainframe, text="Data", padding="10 10 10 10", borderwidth=2, relief="groove")
         self.visual.grid(column=0, row=5, sticky=tk.NSEW)
 
-        self.filtering = ttk.Labelframe(self.mainframe, text="Filter", padding="10 10 10 10", borderwidth=2, relief="groove")
+        self.filtering = ttk.Labelframe(self.mainframe, text="Misc.", padding="10 10 10 10", borderwidth=2, relief="groove")
         self.filtering.grid(column=0, row=4, sticky=tk.NSEW)
 
         self.mainframe.grid_rowconfigure(5, weight=1)  # Make the visual frame expandable
@@ -103,9 +105,6 @@ class GUI:
         self.zero_entry.bind("<FocusOut>", self.clear_zero_point)  # Bind the clear_zero_point function to the entry
         self.clear_zero_point(event=None)  # Clear the zero point entry during initialization
 
-        self.connect_button = ttk.Button(self.measure, text="Connect", command=self.sampler.connect)
-        self.connect_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
-
         self.start_button = ttk.Button(self.measure, text="Start", command=self.start_sampling)
         self.start_button.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
 
@@ -114,6 +113,12 @@ class GUI:
 
         self.clear_button = ttk.Button(self.measure, text="Clear", command=self.clear_sampler)
         self.clear_button.grid(row=1, column=3, padx=5, pady=5, sticky=tk.W)
+
+        self.connect_button = ttk.Button(self.measure, text="Connect", command=self.sampler.connect)
+        self.connect_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
+
+        self.sample_count_label = ttk.Label(self.measure, text="0")
+        self.sample_count_label.grid(row=1, column=5, padx=5, pady=5, sticky=tk.W)
 
         self.add_data_button = ttk.Button(self.store, text="Add Data", command=self.add_data)
         self.add_data_button.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
@@ -182,7 +187,7 @@ class GUI:
         self.trend_label = ttk.Label(self.header_widget, width=5, text="Trend", background='white')
         self.trend_label.grid(row=0, column=2, padx=5, pady=5, sticky="w")
 
-        self.offset_label = ttk.Label(self.header_widget, width=5, text="Offset", background='white')
+        self.offset_label = ttk.Label(self.header_widget, width=6, text="Offset", background='white')
         self.offset_label.grid(row=0, column=3, padx=5, pady=5, sticky="w")
 
         self.save_label = ttk.Label(self.header_widget, width=5, text="Save", background='white')
@@ -191,10 +196,16 @@ class GUI:
         self.filter_button = ttk.Button(self.filtering, text="Filter", command=self.lowpass)
         self.filter_button.grid(row=0, column=0, padx=5, pady=5, sticky='w')
 
+        self.reference_label = ttk.Label(self.filtering, text=f"Reference: {self.reference}")
+        self.reference_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
+        self.reference_label.bind("<Double-1>", lambda event:  self.clear_reference())
+
+
         # Call here functions that are ran by default
         self.check_connection_status()  # Initialize connection checker
 
-    def clear_placeholder(self, event):  # Clear the placeholder text when the entry is clicked
+    @staticmethod
+    def clear_placeholder(event):  # Clear the placeholder text when the entry is clicked
         if event.widget.get() in ["min", "max"]:
             event.widget.delete(0, tk.END)
             event.widget.config(foreground='black')
@@ -230,11 +241,9 @@ class GUI:
             if not self.connection_established:
                 self.start_button.config(state=tk.NORMAL)
                 self.connection_established = True
-            # self.measure.configure(style='TLabelframe')
         else:
             self.start_button.config(state=tk.DISABLED)
             self.connection_established = False
-            # self.measure.configure(style='Disabled.TLabelframe')  # Indicate that there's no connection
 
         self.root.after(1000, self.check_connection_status)
 
@@ -259,6 +268,7 @@ class GUI:
     def clear_sampler(self):
         self.data_holder.clear_live_data()
         self.plotter.clear_plot1()
+        self.update_sample_count(0, 0)
 
     def add_data(self):  # Add the data to the data dictionary, each name has an original dataset along with a 'None'
         # filtered set
@@ -325,12 +335,17 @@ class GUI:
         slider.config(command=lambda val, n=name, lbl=slider_value_label: self.update_filter_with_label(n, val, lbl))
         slider.bind("<ButtonRelease-1>", lambda event, n=name, val=slider_value: self.update_filter(n, val.get()))
 
+        widget.bind("<Double-1>", lambda event, w=widget: self.on_widget_double_click(w))
+        """ Maybe bind this to the nametag instead of the widget"""
+
     def update_filter_with_label(self, name, val, label):  # Redundant
         val = int(float(val))
         label.config(text=f"{val}")
 
     def remove_checkbox(self, widget):
         self.data_holder.remove_associated_data(widget)
+        if self.reference == widget.name:
+            self.clear_reference()
         widget.destroy()
 
     def load_data(self):
@@ -339,7 +354,8 @@ class GUI:
     def plot_data(self):  # Save the data whose 'plot' checkbox is checked.
         selected_data = {name: self.data[name] for name, var in self.plot_vars.items() if var.get()}
         if not selected_data:
-            messagebox.showwarning("Warning", "No data selected!")
+            # messagebox.showwarning("Warning", "No data selected!")
+            """ Maybe clear plot instead """
             return
 
         self.plotter.plot_data(selected_data, self.offset_entry, self.trend_vars)
@@ -359,6 +375,25 @@ class GUI:
 
     def lowpass(self):
         return
+
+    def update_sample_count(self, count, total_count):
+        if total_count > count:
+            self.sample_count_label.config(text=f"{total_count} ({count})")
+        else:
+            self.sample_count_label.config(text=f"{count}")
+
+    def on_widget_double_click(self, widget):
+        self.reference = widget.name
+        self.reference_label.config(text=f"Reference: {self.reference}")
+        self.data_holder.extend_data(widget.name)
+        print(f"Double-clicked on widget: {self.reference}")
+
+    def get_reference(self):
+        return self.reference
+
+    def clear_reference(self):
+        self.reference = None
+        self.reference_label.config(text=f"Reference: {self.reference}")
 
     def show(self):
         self.root.mainloop()

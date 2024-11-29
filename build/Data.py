@@ -31,6 +31,9 @@ class Data:
     def get_live_data(self):
         return self.live_data
 
+    def get_number_live_data(self):
+        return len(self.live_data)
+
     def remove_associated_data(self, widget):
         name = widget.name
 
@@ -106,11 +109,28 @@ class Data:
 
     def extend_data(self, name):
         if name in self.data:
-            x_data = self.data[name]['original'][0]
-            y_data = self.data[name]['filtered'][1]
-            new_x_data = np.arange(min(x_data), max(x_data) + 0.001, 0.001)
-            new_y_data = np.interp(new_x_data, x_data, y_data)
+            x_data = np.array(self.data[name]['original'][0])
+            y_data = np.array(self.data[name]['original'][1])
+            unique_x_data = np.unique(x_data)  # We do this to remove duplicate x values since interpolation will fail
+            compressed_x_data = unique_x_data
+            compressed_y_data = [np.mean(y_data[np.isclose(x_data, x ,atol=1e-5)]) for x in unique_x_data]
+            new_x_data = np.arange(min(compressed_x_data), max(compressed_x_data) + 0.001, 0.001)
+            new_y_data = np.interp(new_x_data, compressed_x_data, compressed_y_data)
             self.data[name]['extended'] = (new_x_data, new_y_data)
+
+    def calc_reference(self, new_data):
+        name = self.gui.get_reference()
+        if name not in self.data or 'extended' not in self.data[name]:
+            return
+        ref_x, ref_y = self.data[name]['extended']
+        x, y = new_data
+
+        index = np.where(np.isclose(ref_x, x, atol=1e-5))[0]
+        if len(index) == 0:
+            return
+        ref_y_val = ref_y[index[0]]
+        return (x, y - ref_y_val)
+
 
     def load_data(self):
         load_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])

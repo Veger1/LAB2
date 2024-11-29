@@ -28,7 +28,8 @@ class Sampler:
             print("Zero point set", self.last_data)
             self.zero_point = self.last_data
 
-    def find_arduino_port(self):  # Automatically find the Arduino port
+    @staticmethod
+    def find_arduino_port():  # Automatically find the Arduino port
         ports = serial.tools.list_ports.comports()
         for port, desc, hwid in ports:
             # Check if the description or hardware ID matches Arduino
@@ -90,7 +91,7 @@ class Sampler:
             self.sampling = False
             self.stop_event.set()
             if self.thread is not None:
-                self.thread.join(timeout=0.2)  # Give the sampling thread 1 second to finish. GUI is unresponsive
+                self.thread.join(timeout=0.2)  # Give the sampling thread 0.2 second to finish. GUI is unresponsive
                 # during this time.
                 live = self.thread.is_alive()
                 if live:
@@ -105,44 +106,51 @@ class Sampler:
                     data = self.ser.read_until(b'\n')  # Read until newline character
                     print(data)
                     parts = data.split(b'\r')
-                    if parts[0].startswith(b'0\x80\x06\x83') and len(parts) > 1:
+                    if parts[0].startswith(b'\x80\x06\x83') and len(parts) > 1:
                         print("Good format")
                         xa = parts[0][3:-1].decode('ascii', errors='ignore')  # Skip first 3 and last byte
                         # Remove any unwanted characters (non-numeric)
                         cleaned_str = ''.join(filter(lambda x: x.isdigit() or x == '.', xa))
-                        """
-                        ARDUINO CODE SHOULD BE MODIFIED TO SEND DATA AS BYTES/CHARACTERS
-                        """
-                        try:
-                            xi = float(cleaned_str)  # Convert to float
-                            self.last_data = xi
-                            xi = xi - self.zero_point  # Subtract zero point
-                            if self.flip_orientation:  # Flip orientation if needed
-                                xi = -xi
-                        except ValueError:
-                            print("Error:", cleaned_str)
-                            continue  # Skip appending data if conversion fails
+                        xi = self.convert_x_data(cleaned_str)
+                        yi = self.convert_y_data(parts[1])
+                        if xi is None or yi is None:
+                            continue
+                        self.in_queue.put((xi, yi))
 
-                        try:
-                            bits = int(parts[1].strip())
-                            voltage = 2 * float(bits) * 0.1875
-                            yi = voltage / 50.0
-                            print(xi, yi)
-                            self.in_queue.put((xi, yi))
-                        except ValueError:
-                            print("Error, no second part")
-                            continue
-                        except Exception as e:
-                            print(f"Error: {e}")
-                            continue
             except serial.serialutil.SerialException:
                 self.stop_event.set()
-                # Needs some extra handling here
+                """ Some extra handling needed here """
             except Exception:
                 self.stop_event.set()
 
-    # def get_data(self):
-    #     return self.data_holder.live_data
+    def convert_x_data(self, cleaned_str):
+        try:
+            xi = float(cleaned_str)  # Convert to float
+            """
+            Add outlier detection here
+            """
+            self.last_data = xi
+            xi = xi - self.zero_point  # Subtract zero point
+            if self.flip_orientation:  # Flip orientation if needed
+                xi = -xi
+        except ValueError:
+            print("Error:", cleaned_str)
+            return None
+        return xi
+
+    @staticmethod
+    def convert_y_data(part):
+        try:
+            bits = int(part.strip())
+            voltage = 2 * float(bits) * 0.1875
+            yi = voltage / 50.0
+        except ValueError:
+            print("Error, no second part")
+            return None
+        except Exception as e:
+            print(f"Error: {e}")
+            return None
+        return yi
 
     def sampler(self, stop_event):
         x = 0.0
