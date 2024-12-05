@@ -80,6 +80,13 @@ class Sampler:
             self.thread.start()
         return self.sampling
 
+    def offline_sampler(self):
+        self.sampling = True
+        self.stop_event.clear()
+        self.thread = threading.Thread(target=self.sampler, args=(self.stop_event,), daemon=True)
+        self.thread.start()
+        return self.sampling
+
     def stop_sampling(self):
         try:
             self.ser.write(b'S')  # Send 'S' to stop Serial1 (hardware Serial with Laser)
@@ -152,14 +159,14 @@ class Sampler:
             return None
         return yi
 
-    def sampler(self, stop_event):
+    def sampler(self, duration=1):
         x = 0.0
-        while not stop_event.is_set():
-            y = np.sin(x)
+        while not self.stop_event.is_set():
+            y = np.sin(x) + x
             x += 0.1
             self.last_data = x
             xi = x - self.zero_point  # Subtract zero point
             if self.flip_orientation:  # Flip orientation if needed
                 xi = -xi
             self.in_queue.put((xi, y))
-            sleep(0.1)
+            sleep(0.01)
