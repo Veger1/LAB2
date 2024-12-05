@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from PIL.ImageChops import offset
 from matplotlib.animation import FuncAnimation
 
 
@@ -61,30 +62,38 @@ class Plotter:
         self.clear_plot2()
 
         for name, datasets in selected_data.items():
-            x, y = datasets['original']
-            y = np.array(y)
+            delta_y = 0
             if offset_entry[name].get():
-                y += float(offset_entry[name].get())
-            self.ax2.plot(x, y, label=f"{name} (original)")
-            if trend_vars[name].get():
-                self.add_trend_line(x, y, name)
+                delta_y = float(offset_entry[name].get())
+            if self.gui.detrend_bool.get():
+                x, y = self.data_holder.data[name]['detrended']
+                y = np.array(y)
+                self.ax2.plot(x, y+delta_y, label=f"{name} (detrended)")
+            else:
+                x, y = self.data_holder.data[name]['original']
+                y = np.array(y)
+                self.ax2.plot(x, y+delta_y, label=f"{name} (original)")
 
-            # Plot filtered data if exists
+            if trend_vars[name].get():
+                self.add_trend_line(x, delta_y, name)
+
             if 'filtered' in datasets and datasets['filtered'] is not None:
                 xf, yf = datasets['filtered']
-                self.ax2.plot(xf, np.array(yf), label=f"{name} (filtered)", linestyle='--')
+                self.ax2.plot(xf, np.array(yf)+delta_y, label=f"{name} (filtered)", linestyle='--')
 
         self.ax2.legend()
         self.ax2.grid(True)
         self.ax2.figure.canvas.draw()
 
-    def add_trend_line(self, x, y, name):
+
+    def add_trend_line(self, x, delta_y, name):
+        if self.gui.detrend_bool.get():
+            _, b = self.data_holder.data[name]['coefficients']
+            a = 0
+        else:
+            a, b = self.data_holder.data[name]['coefficients']
         x = np.array(x)
-        y = np.array(y)
-        a, b = np.polyfit(x, y, 1)
-        self.ax2.plot(x, a * x + b, label=f"Trend {name}: {a:.2f}x + {b:.2f}", linestyle='--')
-        self.ax2.legend()
-        self.ax2.figure.canvas.draw()
+        self.ax2.plot(x, a * x + b + delta_y, label=f"Trend {name}: {a:.2f}x + {b:.2f}", linestyle='--')
 
     def clear_plot1(self):
         if self.ax1 is not None:

@@ -66,7 +66,10 @@ class Data:
             # y_data = np.sin(x_data) + np.random.normal(0, 0.1, x_data.shape)  # Sine wave with noise
             # Used to test filtering
 
-            self.data[name] = {'original': (list(x_data), list(y_data)), 'filtered': None}
+            self.data[name] = {'original': (list(x_data), list(y_data)), 'filtered': None,
+                               'extended': None, 'detrended': None, 'coefficients': None}
+            self.extend_data(name)
+            self.remove_trend(name)
             return name
         return None
 
@@ -107,8 +110,10 @@ class Data:
 
         messagebox.showinfo("Success", "Data saved successfully!")
 
-    def extend_data(self, name):
+    def extend_data(self, name):  # Extend the data to a uniform x-axis (1mm increments)
         if name in self.data:
+            if self.data[name]['extended'] is not None:
+                return
             x_data = np.array(self.data[name]['original'][0])
             y_data = np.array(self.data[name]['original'][1])
             unique_x_data = np.unique(x_data)  # We do this to remove duplicate x values since interpolation will fail
@@ -131,6 +136,28 @@ class Data:
         ref_y_val = ref_y[index[0]]
         return (x, y - ref_y_val)
 
+    def remove_trend(self, name):
+        if name in self.data:
+            if self.data[name]['extended'] is None:
+                self.extend_data(name)
+
+            a, b = self.calc_trend(name)  # We do not check if 'extended' is None since it is checked in calc_trend
+            if a is not None:
+                x_data, y_data = self.data[name]['extended']
+                y_data -= a * x_data + b
+                self.data[name]['detrended'] = (x_data, y_data)
+                self.data[name]['coefficients'] = (a, b)
+
+    def calc_trend(self, name):
+        if name in self.data:
+            if self.data[name]['extended'] is None:
+                self.extend_data(name)
+            x_data = np.array(self.data[name]['extended'][0])
+            y_data = np.array(self.data[name]['extended'][1])
+            a, b = np.polyfit(x_data, y_data, 1)
+            return a, b
+        return None, None
+
 
     def load_data(self):
         load_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
@@ -145,7 +172,8 @@ class Data:
                     continue
                 name = row[0]
                 if name not in loaded_data:
-                    loaded_data[name] = {'original': [[], []], 'filtered': None}
+                    loaded_data[name] = {'original': [[], []], 'filtered': None,
+                                         'extended': None, 'detrended': None, 'coefficients': None}
                 if row[1] == 'X':
                     loaded_data[name]['original'][0] = list(map(float, row[2:]))
                 elif row[1] == 'Y':
@@ -158,7 +186,8 @@ class Data:
                     if loaded_data[name]['filtered'] is None:
                         loaded_data[name]['filtered'] = [[], []]
                     loaded_data[name]['filtered'][1] = list(map(float, row[2:]))
-
+                loaded_data[name]['extended'] = None
+                loaded_data[name]['detrended'] = None
         for name, datasets in loaded_data.items():
             if name in self.data:
                 # Keep prompting until a valid name is provided or the user cancels
@@ -184,5 +213,7 @@ class Data:
             else:  # If no duplicate name is found, add the dataset
                 self.data[name] = datasets
                 self.gui.add_checkbox(name)
+            self.extend_data(name)
+            self.remove_trend(name)
 
         messagebox.showinfo("Success", "Data loaded successfully!")

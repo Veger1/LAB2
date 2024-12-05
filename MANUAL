@@ -23,3 +23,10 @@ SAVE:
     TREND CHECKBOX: Check to plot a trendline of the data. Uncheck to remove the trendline from the plot.
     OFFSET CHECKBOX: Check to plot the data with an offset. Uncheck to remove the offset from the plot.
     SAVE CHECKBOX: Check to save the data. Uncheck to remove the data from the saved data list.
+
+
+ """
+ venv path:
+ cd "C:\Users\toonv\OneDrive - KU Leuven\2de master\Thesis\Thesis"
+ .\venv\Scripts\activate
+ """

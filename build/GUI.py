@@ -7,6 +7,18 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import csv
 import numpy as np
 
+class ConsoleRedirector:
+    def __init__(self, text_widget):
+        self.text_widget = text_widget
+
+    def write(self, message):
+        # Insert the message into the Text widget
+        self.text_widget.insert(tk.END, message)
+        self.text_widget.see(tk.END)  # Auto-scroll to the bottom
+
+    def flush(self):
+        pass  # Required for compatibility with `sys.stdout`
+
 
 class GUI:
     def __init__(self, window, sampler, plotter, report, data):
@@ -171,7 +183,7 @@ class GUI:
 
         # Configure the column width of the header widget to better match the checkboxes underneath. Since the
         # checkboxes and header widget are different widgets, they size differently.
-        self.header_widget.grid_columnconfigure(0, minsize=80)
+        self.header_widget.grid_columnconfigure(0, minsize=160)
         self.header_widget.grid_columnconfigure(1, minsize=50)
         self.header_widget.grid_columnconfigure(2, minsize=50)
         self.header_widget.grid_columnconfigure(3, minsize=50)
@@ -200,6 +212,13 @@ class GUI:
         self.reference_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         self.reference_label.bind("<Double-1>", lambda event:  self.clear_reference())
 
+        self.detrend_bool = tk.BooleanVar(value=False)
+        self.detrend_button = ttk.Checkbutton(self.filtering, text="De-trend", variable=self.detrend_bool)
+        self.detrend_button.grid(row=0, column=2, padx=5, pady=5, sticky='w')
+
+        """ Redirect the console output to the text widget """
+        # sys.stdout = ConsoleRedirector(console)
+        # sys.stderr = ConsoleRedirector(console)
 
         # Call here functions that are ran by default
         self.check_connection_status()  # Initialize connection checker
@@ -252,12 +271,11 @@ class GUI:
         #     self.sampler.start_sampling()
         #     self.start_button.config(state=tk.DISABLED)
         #     self.stop_button.config(state=tk.NORMAL)
-        if self.sampler.start_sampler():
+        if self.sampler.start_sampler():  # change to offline_sampler for testing
             print("started sampling")
             self.plotter.start()
             self.start_button.config(state=tk.DISABLED)
             self.stop_button.config(state=tk.NORMAL)
-
 
     def stop_sampling(self):
         self.sampler.stop_sampling()
@@ -289,7 +307,7 @@ class GUI:
         self.datasets.append(widget)
 
         # Configure the column width of the dataset widget to better match the header widget.
-        widget.grid_columnconfigure(0, minsize=80)
+        widget.grid_columnconfigure(0, minsize=160)
         widget.grid_columnconfigure(1, minsize=50)
         widget.grid_columnconfigure(2, minsize=50)
         widget.grid_columnconfigure(3, minsize=50)
@@ -306,7 +324,7 @@ class GUI:
         self.save_vars[name] = tk.BooleanVar()
 
         # Add dataset name and buttons
-        name_label = ttk.Label(widget, width=8, text=name)
+        name_label = ttk.Label(widget, width=20, text=name)
         name_label.grid(row=0, column=0, padx=5, pady=0, sticky="w")
 
         check = ttk.Checkbutton(widget, width=1, variable=self.plot_vars[name])

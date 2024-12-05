@@ -1,11 +1,7 @@
-import os
+import sys
 import tkinter as tk
-from tkinter import ttk
 from tkinter import messagebox, simpledialog, filedialog
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import csv
-import numpy as np
+
 
 from Sampler import Sampler
 from Plotter import Plotter
