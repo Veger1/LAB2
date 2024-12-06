@@ -15,12 +15,33 @@ class Data:
         self.offset_entry = {}
         self.save_vars = {}
         self.datasets = []
+        self.x_min = None
+        self.x_max = None
+        self.valid_limits = False
+        self.ignore_limits = True
 
     def set_gui(self, gui):
         self.gui = gui
 
     def clear_live_data(self):
         self.live_data = []
+
+    def set_ignore_limits(self, value):
+        self.ignore_limits = value
+
+    def set_x_min(self, x_min):
+        self.x_min = x_min
+
+    def set_x_max(self, x_max):
+        self.x_max = x_max
+
+    def check_limits(self):
+        if self.x_min is None or self.x_max is None:
+            self.valid_limits = False
+        elif self.x_min < self.x_max:
+            self.valid_limits = True
+        else:
+            self.valid_limits = False
 
     def clear_data(self):
         pass
@@ -194,7 +215,7 @@ class Data:
                 while True:
                     # Pass the parent window to the dialog
                     new_name = simpledialog.askstring("Input", f"Name {name} already exists! Enter a new name:",
-                                                      parent=self.root)
+                                                      parent=self.gui.root)
 
                     # Handle case when dialog is canceled or closed
                     if new_name is None:

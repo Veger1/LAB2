@@ -100,11 +100,11 @@ class Sampler:
             if self.thread is not None:
                 self.thread.join(timeout=0.2)  # Give the sampling thread 0.2 second to finish. GUI is unresponsive
                 # during this time.
-                live = self.thread.is_alive()
-                if live:
-                    print("live")
-                else:
-                    print("dead")
+                # live = self.thread.is_alive()
+                # if live:
+                #     print("Sampler thread live")
+                # else:
+                #     print("Sampler thread dead")
 
     def sample_data(self, duration=1):  # Runs continuously until stop_event is set.
         while not self.stop_event.is_set():
@@ -114,7 +114,6 @@ class Sampler:
                     print(data)
                     parts = data.split(b'\r')
                     if parts[0].startswith(b'\x80\x06\x83') and len(parts) > 1:
-                        print("Good format")
                         xa = parts[0][3:-1].decode('ascii', errors='ignore')  # Skip first 3 and last byte
                         # Remove any unwanted characters (non-numeric)
                         cleaned_str = ''.join(filter(lambda x: x.isdigit() or x == '.', xa))
@@ -136,6 +135,9 @@ class Sampler:
             """
             Add outlier detection here
             """
+            if self.data_holder.ignore_limits:
+                if xi < self.data_holder.get_min_x() or xi > self.data_holder.get_max_x():
+                    return None
             self.last_data = xi
             xi = xi - self.zero_point  # Subtract zero point
             if self.flip_orientation:  # Flip orientation if needed

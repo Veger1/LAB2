@@ -85,7 +85,6 @@ class Plotter:
         self.ax2.grid(True)
         self.ax2.figure.canvas.draw()
 
-
     def add_trend_line(self, x, delta_y, name):
         if self.gui.detrend_bool.get():
             _, b = self.data_holder.data[name]['coefficients']

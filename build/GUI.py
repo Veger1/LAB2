@@ -1,20 +1,24 @@
 import os
+import datetime
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox, simpledialog, filedialog
-import matplotlib.pyplot as plt
+from tkinter import ttk, messagebox, simpledialog, filedialog
+from tkinter.scrolledtext import ScrolledText
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import csv
-import numpy as np
+import sys
 
 class ConsoleRedirector:
     def __init__(self, text_widget):
         self.text_widget = text_widget
 
     def write(self, message):
-        # Insert the message into the Text widget
-        self.text_widget.insert(tk.END, message)
+        if message.strip():  # Avoid adding timestamps to blank lines
+            timestamp = datetime.datetime.now().strftime("[%H:%M:%S] ")
+            message = f"{timestamp}{message}"
+        self.text_widget.config(state=tk.NORMAL)  # Enable the Text widget
+        self.text_widget.insert(tk.END, message)  # Insert the message
         self.text_widget.see(tk.END)  # Auto-scroll to the bottom
+        self.text_widget.config(state=tk.DISABLED)
+        # Auto-scroll to the bottom
 
     def flush(self):
         pass  # Required for compatibility with `sys.stdout`
@@ -65,6 +69,23 @@ class GUI:
         self.filtering = ttk.Labelframe(self.mainframe, text="Misc.", padding="10 10 10 10", borderwidth=2, relief="groove")
         self.filtering.grid(column=0, row=4, sticky=tk.NSEW)
 
+        self.console_frame =ttk.Frame(self.mainframe, borderwidth=2, height=10, width=55, relief="groove")
+        self.console_frame.grid(column=0, row=6)
+
+        # self.console = tk.Text(self.console_frame, wrap=tk.WORD, height=2, state=tk.DISABLED, bg="lightgrey")
+        # self.console.grid(column=0, row=0, sticky=tk.NSEW)
+        # self.console_scrollbar = ttk.Scrollbar(self.console_frame, orient="vertical", command=self.console.yview)
+        # self.console_scrollbar.grid(column=1, row=0, sticky=tk.NS)
+        # self.console["yscrollcommand"] = self.console_scrollbar.set
+
+        self.console = ScrolledText(self.console_frame, wrap=tk.WORD, height=3, width=50, state=tk.DISABLED,
+                                    bg="lightgrey")
+        self.console.grid(column=0, row=0, sticky=tk.NSEW)
+
+        """ Redirect the console output to the text widget """
+        sys.stdout = ConsoleRedirector(self.console)
+        sys.stderr = ConsoleRedirector(self.console)
+
         self.mainframe.grid_rowconfigure(5, weight=1)  # Make the visual frame expandable
 
         self.plot_frame1 = ttk.Frame(self.root, borderwidth=2, relief="groove")
@@ -77,13 +98,11 @@ class GUI:
         self.canvas1 = FigureCanvasTkAgg(self.fig1, master=self.plot_frame1)
         self.canvas1.draw()
         self.canvas1.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        # self.ax1.set_title('Data')
 
         self.fig2, self.ax2 = plotter.fig2, plotter.ax2
         self.canvas2 = FigureCanvasTkAgg(self.fig2, master=self.plot_frame2)
         self.canvas2.draw()
         self.canvas2.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=True)
-        # self.ax2.set_title('Saved Data')
 
         # Variables can be associated with widgets to store data. These variables can be used to store the state
         # of e.g. a button.
@@ -96,6 +115,7 @@ class GUI:
         self.x_min_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         self.x_min_entry.bind("<FocusIn>", self.clear_placeholder)  # Bind the clear_placeholder function to the entry
         self.x_min_entry.bind("<FocusOut>", self.add_placeholder)  # Bind the add_placeholder function to the entry
+        self.x_min_entry.bind("<FocusOut>", self.save_x_min_entry)
         self.add_placeholder(event=None, widget=self.x_min_entry, placeholder="min")  # Add a placeholder to the
         # entry during initialization
 
@@ -103,6 +123,7 @@ class GUI:
         self.x_max_entry.grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
         self.x_max_entry.bind("<FocusIn>", self.clear_placeholder)
         self.x_max_entry.bind("<FocusOut>", self.add_placeholder)
+        self.x_max_entry.bind("<FocusOut>", self.save_x_max_entry)
         self.add_placeholder(event=None, widget=self.x_max_entry, placeholder="max")
 
         self.direction_var = tk.BooleanVar(value=False)
@@ -205,8 +226,10 @@ class GUI:
         self.save_label = ttk.Label(self.header_widget, width=5, text="Save", background='white')
         self.save_label.grid(row=0, column=4, padx=5, pady=5, sticky="w")
 
-        self.filter_button = ttk.Button(self.filtering, text="Filter", command=self.lowpass)
-        self.filter_button.grid(row=0, column=0, padx=5, pady=5, sticky='w')
+        self.ignore_limits = tk.BooleanVar(value=True)
+        self.ignore_button = ttk.Checkbutton(self.filtering, text="ignore limit", variable=self.ignore_limits,
+                                             command=self.update_ignore_limits)
+        self.ignore_button.grid(row=0, column=0, padx=5, pady=5, sticky='w')
 
         self.reference_label = ttk.Label(self.filtering, text=f"Reference: {self.reference}")
         self.reference_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
@@ -216,12 +239,30 @@ class GUI:
         self.detrend_button = ttk.Checkbutton(self.filtering, text="De-trend", variable=self.detrend_bool)
         self.detrend_button.grid(row=0, column=2, padx=5, pady=5, sticky='w')
 
-        """ Redirect the console output to the text widget """
-        # sys.stdout = ConsoleRedirector(console)
-        # sys.stderr = ConsoleRedirector(console)
-
-        # Call here functions that are ran by default
         self.check_connection_status()  # Initialize connection checker
+
+    def __del__(self):
+        # Reset sys.stdout and sys.stderr when the GUI is destroyed
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__
+
+    """ The next 3 function are here because gui not an argument of sampler.
+     Maybe change in future"""
+
+    def save_x_min_entry(self, event):
+        value = self.x_min_entry.get()
+        if value and value != "min":
+            self.data_holder.set_x_min(value)
+            self.data_holder.check_limits()
+
+    def save_x_max_entry(self, event):
+        value = self.x_max_entry.get()
+        if value and value != "max":
+            self.data_holder.set_x_max(value)
+            self.data_holder.check_limits()
+
+    def update_ignore_limits(self):
+        self.data_holder.set_ignore_limits(self.ignore_limits.get())
 
     @staticmethod
     def clear_placeholder(event):  # Clear the placeholder text when the entry is clicked
@@ -375,7 +416,6 @@ class GUI:
             # messagebox.showwarning("Warning", "No data selected!")
             """ Maybe clear plot instead """
             return
-
         self.plotter.plot_data(selected_data, self.offset_entry, self.trend_vars)
 
     def update_filter(self, name, cutoff_freq):
