@@ -5,6 +5,7 @@ from tkinter import ttk, messagebox, simpledialog, filedialog
 from tkinter.scrolledtext import ScrolledText
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sys
+from functools import partial
 
 class ConsoleRedirector:
     def __init__(self, text_widget):
@@ -22,6 +23,41 @@ class ConsoleRedirector:
 
     def flush(self):
         pass  # Required for compatibility with `sys.stdout`
+
+class Tooltip:
+    def __init__(self, widget, text=None, text_function= None):
+        self.widget = widget
+        self.text = text
+        self.text_function = text_function
+        self.tooltip_window = None
+        self.widget.bind("<Enter>", self.show_tooltip)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+
+    def show_tooltip(self, event):
+        if self.tooltip_window:
+            return
+        if callable(self.text_function):
+            text = self.text_function()
+        else:
+            text = self.text
+        if not text:
+            return
+        x, y, _, _ = self.widget.bbox("insert")
+        x += self.widget.winfo_rootx() + 25
+        y += self.widget.winfo_rooty() + 25
+        self.tooltip_window = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x}+{y}")
+        label = tk.Label(tw, text=text, justify=tk.LEFT,
+                         background="#ffffe0", relief=tk.SOLID, borderwidth=1,
+                         font=("tahoma", "8", "normal"))
+        label.pack(ipadx=1)
+
+    def hide_tooltip(self, event):
+        tw = self.tooltip_window
+        self.tooltip_window = None
+        if tw:
+            tw.destroy()
 
 
 class GUI:
@@ -49,6 +85,7 @@ class GUI:
         self.offset_vars = self.data_holder.offset_vars
         self.offset_entry = self.data_holder.offset_entry
         self.save_vars = self.data_holder.save_vars
+        self.detrend_vars = self.data_holder.detrend_vars
         self.datasets = self.data_holder.datasets
 
         self.mainframe = ttk.Frame(self.root, padding="10 10 10 10", borderwidth=2, relief="groove")
@@ -71,12 +108,6 @@ class GUI:
 
         self.console_frame =ttk.Frame(self.mainframe, borderwidth=2, height=10, width=55, relief="groove")
         self.console_frame.grid(column=0, row=6)
-
-        # self.console = tk.Text(self.console_frame, wrap=tk.WORD, height=2, state=tk.DISABLED, bg="lightgrey")
-        # self.console.grid(column=0, row=0, sticky=tk.NSEW)
-        # self.console_scrollbar = ttk.Scrollbar(self.console_frame, orient="vertical", command=self.console.yview)
-        # self.console_scrollbar.grid(column=1, row=0, sticky=tk.NS)
-        # self.console["yscrollcommand"] = self.console_scrollbar.set
 
         self.console = ScrolledText(self.console_frame, wrap=tk.WORD, height=3, width=50, state=tk.DISABLED,
                                     bg="lightgrey")
@@ -106,7 +137,6 @@ class GUI:
 
         # Variables can be associated with widgets to store data. These variables can be used to store the state
         # of e.g. a button.
-
         self.manual_limit_var = tk.IntVar(value=0)
         self.manual_limit = ttk.Checkbutton(self.plots, text="Manual", variable=self.manual_limit_var)
         self.manual_limit.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
@@ -235,10 +265,6 @@ class GUI:
         self.reference_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         self.reference_label.bind("<Double-1>", lambda event:  self.clear_reference())
 
-        self.detrend_bool = tk.BooleanVar(value=False)
-        self.detrend_button = ttk.Checkbutton(self.filtering, text="De-trend", variable=self.detrend_bool)
-        self.detrend_button.grid(row=0, column=2, padx=5, pady=5, sticky='w')
-
         self.check_connection_status()  # Initialize connection checker
 
     def __del__(self):
@@ -363,6 +389,7 @@ class GUI:
         self.trend_vars[name] = tk.BooleanVar()
         self.offset_entry[name] = tk.StringVar(value='0')
         self.save_vars[name] = tk.BooleanVar()
+        self.detrend_vars[name] = tk.BooleanVar()
 
         # Add dataset name and buttons
         name_label = ttk.Label(widget, width=20, text=name)
@@ -380,7 +407,6 @@ class GUI:
         save_check = ttk.Checkbutton(widget, width=1, variable=self.save_vars[name])
         save_check.grid(row=0, column=4, padx=5, pady=0, sticky="w")
 
-        # Remove button
         remove_button = ttk.Button(widget, width=8, text="Remove", command=lambda w=widget: self.remove_checkbox(w))
         remove_button.grid(row=0, column=5, padx=5, pady=0, sticky="w")
 
@@ -389,17 +415,15 @@ class GUI:
         # slider = ttk.Scale(widget, from_=0, to=10, orient=tk.HORIZONTAL, variable=slider_value)
         slider = tk.Scale(widget, from_=0, to=50, orient=tk.HORIZONTAL, variable=slider_value, resolution=1)
         slider.grid(row=1, column=2, columnspan=5,padx=5, pady=0, sticky="w")
-        slider_value_label = ttk.Label(widget, text="0")  # Redundant
-        slider_value_label.grid(row=1, column=1, padx=5, pady=0, sticky="w")  # Redundant
-        slider.config(command=lambda val, n=name, lbl=slider_value_label: self.update_filter_with_label(n, val, lbl))
+
+        detrend_check = ttk.Checkbutton(widget, variable= self.detrend_vars[name])
+        detrend_check.grid(row=1, column=1, padx=5, pady=0, sticky="w")
+
         slider.bind("<ButtonRelease-1>", lambda event, n=name, val=slider_value: self.update_filter(n, val.get()))
 
         widget.bind("<Double-1>", lambda event, w=widget: self.on_widget_double_click(w))
+        Tooltip(name_label, text_function=partial(self.get_results, name))
         """ Maybe bind this to the nametag instead of the widget"""
-
-    def update_filter_with_label(self, name, val, label):  # Redundant
-        val = int(float(val))
-        label.config(text=f"{val}")
 
     def remove_checkbox(self, widget):
         self.data_holder.remove_associated_data(widget)
@@ -411,6 +435,7 @@ class GUI:
         self.data_holder.load_data()
 
     def plot_data(self):  # Save the data whose 'plot' checkbox is checked.
+        """ Maybe change this to any checkbox selected within the widget. To plot trendline only for example"""
         selected_data = {name: self.data[name] for name, var in self.plot_vars.items() if var.get()}
         if not selected_data:
             # messagebox.showwarning("Warning", "No data selected!")
@@ -444,10 +469,21 @@ class GUI:
         self.reference = widget.name
         self.reference_label.config(text=f"Reference: {self.reference}")
         self.data_holder.extend_data(widget.name)
-        print(f"Double-clicked on widget: {self.reference}")
+        print(f"Replaced reference with: {self.reference}")
 
     def get_reference(self):
         return self.reference
+
+    def get_results(self,name):
+        ptp = self.data_holder.data[name]['results']['ptp']
+        a = self.data_holder.data[name]['coefficients'][0]
+        if self.get_reference() and self.get_reference() != name:
+            ref_name = self.get_reference()
+            a_ref= self.data_holder.data[ref_name]['coefficients'][0]
+            delta_a = a - a_ref
+            return f"slope: {a:.2f} relative {delta_a:.2f} (µm/m)\n ptp: {ptp:.2f} (µm)"
+        return f"slope: {a:.2f} (µm)\n ptp: {ptp:.2f} (µm)"
+
 
     def clear_reference(self):
         self.reference = None

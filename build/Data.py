@@ -14,6 +14,7 @@ class Data:
         self.offset_vars = {}
         self.offset_entry = {}
         self.save_vars = {}
+        self.detrend_vars = {}
         self.datasets = []
         self.x_min = None
         self.x_max = None
@@ -70,6 +71,7 @@ class Data:
         del self.trend_vars[name]
         del self.offset_entry[name]
         del self.save_vars[name]
+        del self.detrend_vars[name]
 
     def add_data(self):  # Add the data to the data dictionary, each name has an original dataset along with a 'None'
         # filtered set
@@ -88,9 +90,10 @@ class Data:
             # Used to test filtering
 
             self.data[name] = {'original': (list(x_data), list(y_data)), 'filtered': None,
-                               'extended': None, 'detrended': None, 'coefficients': None}
+                               'extended': None, 'detrended': None, 'coefficients': None, 'results': {}}
             self.extend_data(name)
             self.remove_trend(name)
+            self.calc_ptp(name)
             return name
         return None
 
@@ -179,6 +182,24 @@ class Data:
             return a, b
         return None, None
 
+    def calc_ptp(self, name):
+        if name in self.data:
+            if self.data[name]['extended'] is None:
+                self.extend_data(name)
+            y_data = np.array(self.data[name]['extended'][1])
+            ptp = np.ptp(y_data)
+            self.data[name]['results']['ptp'] = ptp
+
+    def compare_slope(self, name1, name2):
+        if name1 in self.data and name2 in self.data:
+            if self.data[name1]['coefficients'] is None:
+                self.remove_trend(name1)
+            if self.data[name2]['coefficients'] is None:
+                self.remove_trend(name2)
+            a1, _ = self.data[name1]['coefficients'][0]
+            a2, _ = self.data[name2]['coefficients'][0]
+            return a1, a2
+        return None, None
 
     def load_data(self):
         load_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
@@ -194,7 +215,8 @@ class Data:
                 name = row[0]
                 if name not in loaded_data:
                     loaded_data[name] = {'original': [[], []], 'filtered': None,
-                                         'extended': None, 'detrended': None, 'coefficients': None}
+                                         'extended': None, 'detrended': None, 'coefficients': None,
+                                         'results': {}}
                 if row[1] == 'X':
                     loaded_data[name]['original'][0] = list(map(float, row[2:]))
                 elif row[1] == 'Y':
@@ -228,13 +250,18 @@ class Data:
                         continue  # Prompt again for valid input
 
                     name = new_name  # Assign the new valid name
-                    self.data[name] = datasets
-                    self.gui.add_checkbox(name)
+                    # self.data[name] = datasets
+                    # self.gui.add_checkbox(name)
                     break
             else:  # If no duplicate name is found, add the dataset
-                self.data[name] = datasets
-                self.gui.add_checkbox(name)
+                # self.data[name] = datasets
+                # self.gui.add_checkbox(name)
+                pass
+            self.data[name] = datasets
             self.extend_data(name)
             self.remove_trend(name)
+            self.calc_ptp(name)
+            self.gui.add_checkbox(name)
+
 
         messagebox.showinfo("Success", "Data loaded successfully!")
