@@ -65,7 +65,7 @@ class Plotter:
             delta_y = 0
             if offset_entry[name].get():
                 delta_y = float(offset_entry[name].get())
-            if self.gui.detrend_bool.get():
+            if self.data_holder.detrend_vars[name].get():
                 x, y = self.data_holder.data[name]['detrended']
                 y = np.array(y)
                 self.ax2.plot(x, y+delta_y, label=f"{name} (detrended)")
@@ -86,7 +86,7 @@ class Plotter:
         self.ax2.figure.canvas.draw()
 
     def add_trend_line(self, x, delta_y, name):
-        if self.gui.detrend_bool.get():
+        if self.data_holder.detrend_vars[name].get():
             _, b = self.data_holder.data[name]['coefficients']
             a = 0
         else:
