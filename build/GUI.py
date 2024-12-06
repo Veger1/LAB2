@@ -114,8 +114,8 @@ class GUI:
         self.console.grid(column=0, row=0, sticky=tk.NSEW)
 
         """ Redirect the console output to the text widget """
-        # sys.stdout = ConsoleRedirector(self.console)
-        # sys.stderr = ConsoleRedirector(self.console)
+        sys.stdout = ConsoleRedirector(self.console)
+        sys.stderr = ConsoleRedirector(self.console)
 
         self.mainframe.grid_rowconfigure(5, weight=1)  # Make the visual frame expandable
 
