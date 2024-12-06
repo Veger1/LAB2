@@ -1,7 +1,7 @@
 Alignment tool
 ==============
 Download Main.exe from the latest release. 
-Opening Main.exe may open console depending on version, then the appliication will start.
+Opening Main.exe may open console depending on version, then the application will start.
 
 Known issues:
 v1.3.0 and below:
