@@ -258,6 +258,11 @@ class GUI:
         self.reference_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         self.reference_label.bind("<Double-1>", lambda event:  self.clear_reference())
 
+        self.legend_var = tk.BooleanVar(value=True)
+        self.legend_check = ttk.Checkbutton(self.filtering, text="Legend", variable=self.legend_var, command= self.plotter.update_legend)
+        self.legend_check.grid(row=0, column=2, padx=5, pady=5, sticky='w')
+        # self.legend_check.bind("ButtonRelease-1", lambda event: self.plotter.update_legend)
+
         self.check_connection_status()  # Initialize connection checker
 
     def __del__(self):

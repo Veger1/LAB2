@@ -77,8 +77,19 @@ class Plotter:
                 xf, yf = datasets['filtered']
                 self.ax2.plot(xf, np.array(yf)+delta_y, label=f"{name} (filtered)", linestyle='--')
 
-        self.ax2.legend()
+        self.add_legend()
         self.ax2.grid(True)
+        self.ax2.figure.canvas.draw()
+
+    def add_legend(self):
+        if self.gui.legend_var.get():
+            if self.ax2.has_data():
+                self.ax2.legend()
+        elif self.ax2.get_legend() is not None:
+            self.ax2.get_legend().remove()
+
+    def update_legend(self):
+        self.add_legend()
         self.ax2.figure.canvas.draw()
 
     def add_trend_line(self, x, delta_y, name):
