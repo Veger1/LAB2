@@ -3,6 +3,7 @@ import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 from tkinter.scrolledtext import ScrolledText
+from PIL import ImageTk, Image
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sys
 from functools import partial
@@ -78,6 +79,10 @@ class GUI:
         self.style.configure('TLabelframe', background='white')
         self.style.configure('TLabelframe.Label', background='white')
         self.style.configure('TCheckbutton', background='white')
+        self.style.configure('Custom.TButton', background='red')
+        image = Image.open('cog-wheel.png')
+        image = image.resize((16, 16))
+        self.setting_icon = ImageTk.PhotoImage(image)
 
         self.data = self.data_holder.data
         self.plot_vars = self.data_holder.plot_vars
@@ -103,8 +108,8 @@ class GUI:
         self.visual = ttk.Labelframe(self.mainframe, text="Data", padding="10 10 10 10", borderwidth=2, relief="groove")
         self.visual.grid(column=0, row=5, sticky=tk.NSEW)
 
-        self.filtering = ttk.Labelframe(self.mainframe, text="Misc.", padding="10 10 10 10", borderwidth=2, relief="groove")
-        self.filtering.grid(column=0, row=4, sticky=tk.NSEW)
+        self.plotting = ttk.Labelframe(self.mainframe, text="Misc.", padding="10 10 10 10", borderwidth=2, relief="groove")
+        self.plotting.grid(column=0, row=4, sticky=tk.NSEW)
 
         self.console_frame =ttk.Frame(self.mainframe, borderwidth=2, height=10, width=55, relief="groove")
         self.console_frame.grid(column=0, row=6)
@@ -115,7 +120,7 @@ class GUI:
 
         """ Redirect the console output to the text widget """
         sys.stdout = ConsoleRedirector(self.console)
-        sys.stderr = ConsoleRedirector(self.console)
+        # sys.stderr = ConsoleRedirector(self.console)
 
         self.mainframe.grid_rowconfigure(5, weight=1)  # Make the visual frame expandable
 
@@ -190,11 +195,14 @@ class GUI:
         self.save_button = ttk.Button(self.store, text="Save", width=8, command=self.save_data)
         self.save_button.grid(row=1, column=3, padx=5, pady=5, sticky=tk.W)
 
-        self.plot_button = ttk.Button(self.store, text="Plot", width=8, command=self.plot_data)  # # #
-        self.plot_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
-
         self.report_button = ttk.Button(self.store, text="Report", width=8, command=self.save_measurement_report)
-        self.report_button.grid(row=1, column=5, padx=5, pady=5, sticky=tk.W)
+        self.report_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
+
+        self.png_button = ttk.Button(self.store, text="PNG", width=8, command=self.save_measurement_png)
+        self.png_button.grid(row=1, column=5, padx=5, pady=5, sticky=tk.W)
+
+        self.store_setting = ttk.Button(self.store, image=self.setting_icon, width=2, style='Custom.TButton')
+        self.store_setting.grid(row=1, column=6, padx=5, pady=5, sticky=tk.E)
 
         self.checkbox_frame = ttk.Frame(self.visual)
         self.checkbox_frame.grid(row=1, column=0, sticky=tk.NSEW)
@@ -254,14 +262,19 @@ class GUI:
         self.save_label = ttk.Label(self.header_widget, width=5, text="Save", background='white')
         self.save_label.grid(row=0, column=4, padx=5, pady=5, sticky="w")
 
-        self.reference_label = ttk.Label(self.filtering, text=f"Reference: {self.reference}")
-        self.reference_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
+        self.reference_label = ttk.Label(self.plotting, text=f"Reference: {self.reference}")
+        # self.reference_label.pack(side=tk.LEFT)
+        self.reference_label.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         self.reference_label.bind("<Double-1>", lambda event:  self.clear_reference())
 
         self.legend_var = tk.BooleanVar(value=True)
-        self.legend_check = ttk.Checkbutton(self.filtering, text="Legend", variable=self.legend_var, command= self.plotter.update_legend)
-        self.legend_check.grid(row=0, column=2, padx=5, pady=5, sticky='w')
-        # self.legend_check.bind("ButtonRelease-1", lambda event: self.plotter.update_legend)
+        self.legend_check = ttk.Checkbutton(self.plotting, text="Legend", variable=self.legend_var, command= self.plotter.update_legend)
+        self.legend_check.grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
+        # self.legend_check.pack(side=tk.LEFT)
+
+        self.plot_button = ttk.Button(self.plotting, text="Plot", width=8, command=self.plot_data)
+        self.plot_button.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
+        # self.plot_button.pack(side=tk.LEFT)
 
         self.check_connection_status()  # Initialize connection checker
 
@@ -426,11 +439,18 @@ class GUI:
         save_path = filedialog.asksaveasfilename(defaultextension=".pdf", filetypes=[("PDF files", "*.pdf")])
         if not save_path:
             return
-
         temp_plot_path = 'temp_plot.png'
-        self.fig2.savefig(temp_plot_path, format='png')
-        self.report.create_report(save_path)
+        self.report.copy_and_resize_plot(self.plotter.fig2, self.plotter.ax2, temp_plot_path)
+        self.report.create_report(save_path, temp_plot_path)
         os.remove(temp_plot_path)
+
+    def save_measurement_png(self):
+        save_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png")])
+        if not save_path:
+            return
+        temp_plot_path = 'temp_plot.png'
+        self.report.copy_and_resize_plot(self.plotter.fig2, self.plotter.ax2, temp_plot_path, save=save_path)
+
 
     def lowpass(self):
         return

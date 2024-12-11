@@ -1,3 +1,4 @@
+from matplotlib import pyplot as plt
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image
@@ -10,10 +11,28 @@ class Report:
     def __init__(self):
         pass
 
-    def test(self):
-        print("Hello from Report")
+    @staticmethod
+    def copy_and_resize_plot(original_fig, original_ax, temp_plot_path, save=None):
+        new_fig, new_ax = plt.subplots(figsize=(10, 6))
+        for line in original_ax.get_lines():
+            new_ax.plot(line.get_xdata(), line.get_ydata(), label=line.get_label(), linestyle=line.get_linestyle(),
+                        color=line.get_color())
+        if original_ax.legend_ is not None:
+            new_ax.legend()
 
-    def create_report(self, save_path):
+        new_ax.set_xlabel(original_ax.get_xlabel())
+        new_ax.set_ylabel(original_ax.get_ylabel())
+        new_ax.set_title(original_ax.get_title())
+        new_ax.grid(True)
+
+        if save:
+            new_fig.savefig(save, format='png')
+        else:
+            new_fig.savefig(temp_plot_path, format='png')
+        plt.close(new_fig)
+
+    @staticmethod
+    def create_report(save_path, temp_plot_path):
         # Create a PDF document with A4 size in landscape mode
         pdf_file = "example.pdf"
         doc = SimpleDocTemplate(save_path, pagesize=landscape(A4), leftMargin=50, rightMargin=50, topMargin=30,
@@ -63,8 +82,7 @@ class Report:
             ('BOX', (0, 0), (-1, -1), 1, colors.black),
         ]))
 
-        plot_path = 'temp_plot.png'
-        with PILImage.open(plot_path) as img:
+        with PILImage.open(temp_plot_path) as img:
             img_width, img_height = img.size
         aspect_ratio = img_width / img_height
         max_width = doc.width
@@ -78,7 +96,7 @@ class Report:
                 img_height = max_height
                 img_width = max_height * aspect_ratio
 
-        plot_image = Image(plot_path, height=img_height, width=img_width)
+        plot_image = Image(temp_plot_path, height=img_height, width=img_width)
         # Combine elements into a story
         story = [table, Spacer(1, 20), title, Spacer(1, 20), plot_image]
 
