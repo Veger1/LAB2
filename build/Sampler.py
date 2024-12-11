@@ -6,7 +6,6 @@ from tkinter import messagebox
 import numpy as np
 
 
-
 class Sampler:
     def __init__(self, root, data):
         self.data_holder = data
@@ -99,12 +98,9 @@ class Sampler:
             self.stop_event.set()
             if self.thread is not None:
                 self.thread.join(timeout=0.2)  # Give the sampling thread 0.2 second to finish. GUI is unresponsive
-                # during this time.
-                # live = self.thread.is_alive()
-                # if live:
-                #     print("Sampler thread live")
-                # else:
-                #     print("Sampler thread dead")
+                live = self.thread.is_alive()
+                if live:
+                    print("Sampler thread still alive")
 
     def sample_data(self, duration=1):  # Runs continuously until stop_event is set.
         while not self.stop_event.is_set():
@@ -132,12 +128,7 @@ class Sampler:
     def convert_x_data(self, cleaned_str):
         try:
             xi = float(cleaned_str)  # Convert to float
-            """
-            Add outlier detection here
-            """
-            if self.data_holder.ignore_limits:
-                if xi < self.data_holder.get_min_x() or xi > self.data_holder.get_max_x():
-                    return None
+            """ Add outlier detection here """
             self.last_data = xi
             xi = xi - self.zero_point  # Subtract zero point
             if self.flip_orientation:  # Flip orientation if needed

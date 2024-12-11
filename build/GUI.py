@@ -145,7 +145,6 @@ class GUI:
         self.x_min_entry.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
         self.x_min_entry.bind("<FocusIn>", self.clear_placeholder)  # Bind the clear_placeholder function to the entry
         self.x_min_entry.bind("<FocusOut>", self.add_placeholder)  # Bind the add_placeholder function to the entry
-        self.x_min_entry.bind("<FocusOut>", self.save_x_min_entry)
         self.add_placeholder(event=None, widget=self.x_min_entry, placeholder="min")  # Add a placeholder to the
         # entry during initialization
 
@@ -153,7 +152,6 @@ class GUI:
         self.x_max_entry.grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
         self.x_max_entry.bind("<FocusIn>", self.clear_placeholder)
         self.x_max_entry.bind("<FocusOut>", self.add_placeholder)
-        self.x_max_entry.bind("<FocusOut>", self.save_x_max_entry)
         self.add_placeholder(event=None, widget=self.x_max_entry, placeholder="max")
 
         self.direction_var = tk.BooleanVar(value=False)
@@ -256,11 +254,6 @@ class GUI:
         self.save_label = ttk.Label(self.header_widget, width=5, text="Save", background='white')
         self.save_label.grid(row=0, column=4, padx=5, pady=5, sticky="w")
 
-        self.ignore_limits = tk.BooleanVar(value=True)
-        self.ignore_button = ttk.Checkbutton(self.filtering, text="ignore limit", variable=self.ignore_limits,
-                                             command=self.update_ignore_limits)
-        self.ignore_button.grid(row=0, column=0, padx=5, pady=5, sticky='w')
-
         self.reference_label = ttk.Label(self.filtering, text=f"Reference: {self.reference}")
         self.reference_label.grid(row=0, column=1, padx=5, pady=5, sticky='w')
         self.reference_label.bind("<Double-1>", lambda event:  self.clear_reference())
@@ -271,24 +264,6 @@ class GUI:
         # Reset sys.stdout and sys.stderr when the GUI is destroyed
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
-
-    """ The next 3 function are here because gui not an argument of sampler.
-     Maybe change in future"""
-
-    def save_x_min_entry(self, event):
-        value = self.x_min_entry.get()
-        if value and value != "min":
-            self.data_holder.set_x_min(value)
-            self.data_holder.check_limits()
-
-    def save_x_max_entry(self, event):
-        value = self.x_max_entry.get()
-        if value and value != "max":
-            self.data_holder.set_x_max(value)
-            self.data_holder.check_limits()
-
-    def update_ignore_limits(self):
-        self.data_holder.set_ignore_limits(self.ignore_limits.get())
 
     @staticmethod
     def clear_placeholder(event):  # Clear the placeholder text when the entry is clicked
@@ -334,10 +309,6 @@ class GUI:
         self.root.after(1000, self.check_connection_status)
 
     def start_sampling(self):
-        # if self.sampler.is_connected():
-        #     self.sampler.start_sampling()
-        #     self.start_button.config(state=tk.DISABLED)
-        #     self.stop_button.config(state=tk.NORMAL)
         if self.sampler.start_sampler():  # change to offline_sampler for testing
             print("started sampling")
             self.plotter.start()

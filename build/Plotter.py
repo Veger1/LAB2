@@ -1,10 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
-from PIL.ImageChops import offset
 from matplotlib.animation import FuncAnimation
-
-
-# from tkinter import simpledialog
 
 
 class Plotter:
