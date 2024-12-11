@@ -1,5 +1,4 @@
 import os
-import datetime
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog, filedialog
 from tkinter.scrolledtext import ScrolledText
@@ -8,58 +7,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import sys
 from functools import partial
 
-class ConsoleRedirector:
-    def __init__(self, text_widget):
-        self.text_widget = text_widget
-
-    def write(self, message):
-        if message.strip():  # Avoid adding timestamps to blank lines
-            timestamp = datetime.datetime.now().strftime("[%H:%M:%S] ")
-            message = f"{timestamp}{message}"
-        self.text_widget.config(state=tk.NORMAL)  # Enable the Text widget
-        self.text_widget.insert(tk.END, message)  # Insert the message
-        self.text_widget.see(tk.END)  # Auto-scroll to the bottom
-        self.text_widget.config(state=tk.DISABLED)
-        # Auto-scroll to the bottom
-
-    def flush(self):
-        pass  # Required for compatibility with `sys.stdout`
-
-class Tooltip:
-    def __init__(self, widget, text=None, text_function= None):
-        self.widget = widget
-        self.text = text
-        self.text_function = text_function
-        self.tooltip_window = None
-        self.widget.bind("<Enter>", self.show_tooltip)
-        self.widget.bind("<Leave>", self.hide_tooltip)
-
-    def show_tooltip(self, event):
-        if self.tooltip_window:
-            return
-        if callable(self.text_function):
-            text = self.text_function()
-        else:
-            text = self.text
-        if not text:
-            return
-        x, y, _, _ = self.widget.bbox("insert")
-        x += self.widget.winfo_rootx() + 25
-        y += self.widget.winfo_rooty() + 25
-        self.tooltip_window = tw = tk.Toplevel(self.widget)
-        tw.wm_overrideredirect(True)
-        tw.wm_geometry(f"+{x}+{y}")
-        label = tk.Label(tw, text=text, justify=tk.LEFT,
-                         background="#ffffe0", relief=tk.SOLID, borderwidth=1,
-                         font=("tahoma", "8", "normal"))
-        label.pack(ipadx=1)
-
-    def hide_tooltip(self, event):
-        tw = self.tooltip_window
-        self.tooltip_window = None
-        if tw:
-            tw.destroy()
-
+from Blocks import ConsoleRedirector, Tooltip
 
 class GUI:
     def __init__(self, window, sampler, plotter, report, data):
@@ -80,7 +28,7 @@ class GUI:
         self.style.configure('TLabelframe.Label', background='white')
         self.style.configure('TCheckbutton', background='white')
         self.style.configure('Custom.TButton', background='red')
-        image = Image.open('cog-wheel.png')
+        image = Image.open('pics/cog-wheel.png')
         image = image.resize((16, 16))
         self.setting_icon = ImageTk.PhotoImage(image)
 
@@ -186,23 +134,23 @@ class GUI:
         self.sample_count_label = ttk.Label(self.measure, text="0")
         self.sample_count_label.grid(row=1, column=5, padx=5, pady=5, sticky=tk.W)
 
-        self.add_data_button = ttk.Button(self.store, text="Add Data", command=self.add_data)
-        self.add_data_button.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
+        self.add_data_button = ttk.Button(self.store, text="Add", width=8, command=self.add_data)
+        self.add_data_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.load_data_button = ttk.Button(self.store, text="Load", width=8, command=self.load_data)
-        self.load_data_button.grid(row=1, column=2, padx=5, pady=5, sticky=tk.W)
+        self.load_data_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.save_button = ttk.Button(self.store, text="Save", width=8, command=self.save_data)
-        self.save_button.grid(row=1, column=3, padx=5, pady=5, sticky=tk.W)
+        self.save_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.report_button = ttk.Button(self.store, text="Report", width=8, command=self.save_measurement_report)
-        self.report_button.grid(row=1, column=4, padx=5, pady=5, sticky=tk.W)
+        self.report_button.pack(side=tk.LEFT, padx=5, pady=5)
 
         self.png_button = ttk.Button(self.store, text="PNG", width=8, command=self.save_measurement_png)
-        self.png_button.grid(row=1, column=5, padx=5, pady=5, sticky=tk.W)
+        self.png_button.pack(side=tk.LEFT, padx=5, pady=5)
 
-        self.store_setting = ttk.Button(self.store, image=self.setting_icon, width=2, style='Custom.TButton')
-        self.store_setting.grid(row=1, column=6, padx=5, pady=5, sticky=tk.E)
+        # self.store_setting = ttk.Button(self.store, image=self.setting_icon, width=2, command=self.open_store_settings)
+        # self.store_setting.pack(side=tk.RIGHT, padx=5, pady=5)
 
         self.checkbox_frame = ttk.Frame(self.visual)
         self.checkbox_frame.grid(row=1, column=0, sticky=tk.NSEW)
@@ -480,10 +428,12 @@ class GUI:
             return f"slope: {a:.2f} relative {delta_a:.2f} (µm/m)\n ptp: {ptp:.2f} (µm)"
         return f"slope: {a:.2f} (µm)\n ptp: {ptp:.2f} (µm)"
 
-
     def clear_reference(self):
         self.reference = None
         self.reference_label.config(text=f"Reference: {self.reference}")
+
+    def open_store_settings(self):
+        pass
 
     def show(self):
         self.root.mainloop()

@@ -54,7 +54,7 @@ class Report:
         # content = Paragraph("content", normal_style)
 
         # Path to the image (replace 'your_image.png' with your image path)
-        image_path = 'logo-LAB-motion-systems.png'
+        image_path = 'pics/logo-LAB-motion-systems.png'
         image = Image(image_path, width=92, height=50)  # Adjust the image size as needed
 
         current_date = datetime.now().strftime("%d-%m-%Y")
