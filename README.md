@@ -4,6 +4,10 @@ Download Main.exe from the latest release.
 Opening Main.exe may open console depending on version, then the application will start.
 
 Known issues:
+v1.3.0 and below:
+- Loading in a dataset with an existing name and pressing 'cancel' still produces an empty dataset.
+- Save button can produce empty .csv files.
+
 v1.2.0 and below:
 - The label for dataset names is limited in size, so long dataset names will be cut off.
 - Though it is possible to acquire encoder data with the arduino code, the application cannot yet switch to this mode.
