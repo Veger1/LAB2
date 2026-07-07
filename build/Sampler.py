@@ -110,6 +110,8 @@ class Sampler:
                     parts = data.split(b'\r')
                     if parts[0].startswith(b'\x80\x06\x83') and len(parts) > 1:
                         xa = parts[0][3:-1].decode('ascii', errors='ignore')  # Skip first 3 and last byte
+                        if 'ERR' in xa:  # Sensor reports out-of-range/error frame instead of a reading
+                            continue
                         # Remove any unwanted characters (non-numeric)
                         cleaned_str = ''.join(filter(lambda x: x.isdigit() or x == '.', xa))
                         xi = self.convert_x_data(cleaned_str)
