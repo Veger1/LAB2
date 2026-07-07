@@ -43,20 +43,26 @@ class Data:
             del self.data[name]
 
         # Destroy the widget and remove self.datasets
-        self.datasets.remove(widget)
+        if widget in self.datasets:
+            self.datasets.remove(widget)
 
-        # Cleanup associated variables
-        del self.plot_vars[name]
-        del self.trend_vars[name]
-        del self.offset_entry[name]
-        del self.save_vars[name]
-        del self.detrend_vars[name]
+        # Cleanup associated variables. Use pop(name, None) instead of del so a partially
+        # inconsistent state (e.g. a duplicate-name widget) can't crash removal halfway through.
+        self.plot_vars.pop(name, None)
+        self.trend_vars.pop(name, None)
+        self.offset_entry.pop(name, None)
+        self.save_vars.pop(name, None)
+        self.detrend_vars.pop(name, None)
 
     def add_data(self):  # Add the data to the data dictionary, each name has an original dataset along with a 'None'
         # filtered set
         if self.get_live_data():
             name = simpledialog.askstring("Input", "Enter measurement name:")
+            if name is None:
+                return None
+            name = name.strip()
             if not name:
+                messagebox.showerror("Error", "Name cannot be empty!")
                 return None
 
             if name in self.data:
@@ -88,30 +94,40 @@ class Data:
         y_filtered = np.real(np.fft.ifft(dft_filtered))
         self.data[name]['filtered'] = (x, y_filtered)
 
-    def save_data(self):  # Save the data whose 'save' checkbox is checked.
+    def save_data(self):  # Save the data whose 'save' checkbox is checked. Filtered data is not saved -
+        # it is a display-only transform and can be recomputed from the original data.
         selected_data = {name: self.data[name] for name, var in self.save_vars.items() if var.get()}
         if not selected_data:
             messagebox.showwarning("Warning", "No data selected!")
+            return
+
+        empty_names = [name for name, datasets in selected_data.items() if not datasets['original'][0]]
+        for name in empty_names:
+            del selected_data[name]
+        if not selected_data:
+            messagebox.showwarning("Warning", "Selected dataset(s) contain no data to save!")
             return
 
         save_path = filedialog.asksaveasfilename(defaultextension=".csv", filetypes=[("CSV files", "*.csv")])
         if not save_path:
             return
 
-        with open(save_path, 'w', newline='') as f:
-            writer = csv.writer(f)
-            for name, datasets in selected_data.items():
-                x_orig, y_orig = datasets['original']
-                writer.writerow([name, 'X'] + x_orig)
-                writer.writerow([name, 'Y'] + y_orig)
+        try:
+            with open(save_path, 'w', newline='') as f:
+                writer = csv.writer(f)
+                for name, datasets in selected_data.items():
+                    x_orig, y_orig = datasets['original']
+                    writer.writerow([name, 'X'] + list(x_orig))
+                    writer.writerow([name, 'Y'] + list(y_orig))
+        except OSError as e:
+            messagebox.showerror("Error", f"Failed to save data:\n{e}")
+            return
 
-                # Check if 'filtered' key exists and save it if present
-                if 'filtered' in datasets and datasets['filtered']:
-                    x_filt, y_filt = datasets['filtered']
-                    writer.writerow([name, 'Filtered_X'] + x_filt)
-                    writer.writerow([name, 'Filtered_Y'] + y_filt)
-
-        messagebox.showinfo("Success", "Data saved successfully!")
+        if empty_names:
+            messagebox.showinfo("Success", f"Data saved successfully! Skipped empty dataset(s): "
+                                            f"{', '.join(empty_names)}")
+        else:
+            messagebox.showinfo("Success", "Data saved successfully!")
 
     def extend_data(self, name):  # Extend the data to a uniform x-axis (1mm increments)
         if name in self.data:
@@ -119,6 +135,8 @@ class Data:
                 return
             x_data = np.array(self.data[name]['original'][0])
             y_data = np.array(self.data[name]['original'][1])
+            if len(x_data) == 0:
+                raise ValueError(f"Dataset '{name}' has no data points.")
             unique_x_data = np.unique(x_data)  # We do this to remove duplicate x values since interpolation will fail
             compressed_x_data = unique_x_data
             compressed_y_data = [np.mean(y_data[np.isclose(x_data, x ,atol=1e-5)]) for x in unique_x_data]
@@ -157,6 +175,8 @@ class Data:
                 self.extend_data(name)
             x_data = np.array(self.data[name]['extended'][0])
             y_data = np.array(self.data[name]['extended'][1])
+            if len(x_data) < 2:  # polyfit needs at least 2 points for a linear fit
+                return None, None
             a, b = np.polyfit(x_data, y_data, 1)
             return a, b
         return None, None
@@ -175,8 +195,10 @@ class Data:
                 self.remove_trend(name1)
             if self.data[name2]['coefficients'] is None:
                 self.remove_trend(name2)
-            a1, _ = self.data[name1]['coefficients'][0]
-            a2, _ = self.data[name2]['coefficients'][0]
+            if self.data[name1]['coefficients'] is None or self.data[name2]['coefficients'] is None:
+                return None, None
+            a1, _ = self.data[name1]['coefficients']
+            a2, _ = self.data[name2]['coefficients']
             return a1, a2
         return None, None
 
@@ -185,32 +207,49 @@ class Data:
         if not load_path:
             return
 
-        with open(load_path, 'r') as f:
-            reader = csv.reader(f)
-            loaded_data = {}
-            for row in reader:
-                if len(row) < 3:
-                    continue
-                name = row[0]
-                if name not in loaded_data:
-                    loaded_data[name] = {'original': [[], []], 'filtered': None,
-                                         'extended': None, 'detrended': None, 'coefficients': None,
-                                         'results': {}}
-                if row[1] == 'X':
-                    loaded_data[name]['original'][0] = list(map(float, row[2:]))
-                elif row[1] == 'Y':
-                    loaded_data[name]['original'][1] = list(map(float, row[2:]))
-                elif row[1] == 'Filtered_X':
-                    if loaded_data[name]['filtered'] is None:
-                        loaded_data[name]['filtered'] = [[], []]
-                    loaded_data[name]['filtered'][0] = list(map(float, row[2:]))
-                elif row[1] == 'Filtered_Y':
-                    if loaded_data[name]['filtered'] is None:
-                        loaded_data[name]['filtered'] = [[], []]
-                    loaded_data[name]['filtered'][1] = list(map(float, row[2:]))
-                loaded_data[name]['extended'] = None
-                loaded_data[name]['detrended'] = None
+        skipped_rows = 0
+        try:
+            with open(load_path, 'r') as f:
+                reader = csv.reader(f)
+                loaded_data = {}
+                for row in reader:
+                    if len(row) < 3:
+                        skipped_rows += 1
+                        continue
+                    name = row[0]
+                    if name not in loaded_data:
+                        loaded_data[name] = {'original': [[], []], 'filtered': None,
+                                             'extended': None, 'detrended': None, 'coefficients': None,
+                                             'results': {}}
+                    try:
+                        if row[1] == 'X':
+                            loaded_data[name]['original'][0] = list(map(float, row[2:]))
+                        elif row[1] == 'Y':
+                            loaded_data[name]['original'][1] = list(map(float, row[2:]))
+                        elif row[1] == 'Filtered_X':
+                            if loaded_data[name]['filtered'] is None:
+                                loaded_data[name]['filtered'] = [[], []]
+                            loaded_data[name]['filtered'][0] = list(map(float, row[2:]))
+                        elif row[1] == 'Filtered_Y':
+                            if loaded_data[name]['filtered'] is None:
+                                loaded_data[name]['filtered'] = [[], []]
+                            loaded_data[name]['filtered'][1] = list(map(float, row[2:]))
+                    except ValueError:  # Non-numeric value in a data row - ignore this row
+                        skipped_rows += 1
+                        continue
+                    loaded_data[name]['extended'] = None
+                    loaded_data[name]['detrended'] = None
+        except OSError as e:
+            messagebox.showerror("Error", f"Failed to read file:\n{e}")
+            return
+
+        loaded_names = []
+        skipped_names = []
         for name, datasets in loaded_data.items():
+            if not datasets['original'][0] or not datasets['original'][1]:
+                skipped_names.append(name)
+                continue
+
             if name in self.data:
                 # Keep prompting until a valid name is provided or the user cancels
                 while True:
@@ -218,29 +257,45 @@ class Data:
                     new_name = simpledialog.askstring("Input", f"Name {name} already exists! Enter a new name:",
                                                       parent=self.gui.root)
 
-                    # Handle case when dialog is canceled or closed
+                    # Handle case when dialog is canceled or closed - actually skip this dataset
                     if new_name is None:
-                        messagebox.showwarning("Warning", f"Dataset {name} was not loaded.")
-                        break  # Exit the loop and continue with the next item
+                        skipped_names.append(name)
+                        name = None
+                        break
 
+                    new_name = new_name.strip()
                     # Check for duplicate or empty input
-                    if new_name in self.data or not new_name.strip():
-                        messagebox.showwarning("Warning", f"Invalid input. Please enter a unique name.")
+                    if not new_name or new_name in self.data:
+                        messagebox.showwarning("Warning", "Invalid input. Please enter a unique name.")
                         continue  # Prompt again for valid input
 
                     name = new_name  # Assign the new valid name
-                    # self.data[name] = datasets
-                    # self.gui.add_checkbox(name)
                     break
-            else:  # If no duplicate name is found, add the dataset
-                # self.data[name] = datasets
-                # self.gui.add_checkbox(name)
-                pass
-            self.data[name] = datasets
-            self.extend_data(name)
-            self.remove_trend(name)
-            self.calc_ptp(name)
-            self.gui.add_checkbox(name)
 
+                if name is None:
+                    continue
 
-        messagebox.showinfo("Success", "Data loaded successfully!")
+            try:
+                self.data[name] = datasets
+                self.extend_data(name)
+                self.remove_trend(name)
+                self.calc_ptp(name)
+                self.gui.add_checkbox(name)
+                loaded_names.append(name)
+            except Exception as e:
+                del self.data[name]
+                skipped_names.append(name)
+                print(f"Failed to load dataset '{name}': {e}")
+
+        message_parts = []
+        if loaded_names:
+            message_parts.append(f"Loaded: {', '.join(loaded_names)}")
+        if skipped_names:
+            message_parts.append(f"Skipped: {', '.join(skipped_names)}")
+        if skipped_rows:
+            message_parts.append(f"{skipped_rows} malformed row(s) ignored")
+
+        if loaded_names:
+            messagebox.showinfo("Success", "\n".join(message_parts))
+        else:
+            messagebox.showwarning("Warning", "\n".join(message_parts) if message_parts else "No data was loaded.")

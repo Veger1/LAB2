@@ -40,9 +40,5 @@ MISC.:
     OFFSET CHECKBOX: Check to plot the data with an offset. Uncheck to remove the offset from the plot.
     SAVE CHECKBOX: Check to save the data. Uncheck to remove the data from the saved data list.
 
-
- """
- venv path:
- cd "C:\Users\toonv\OneDrive - KU Leuven\2de master\Thesis\Thesis"
- .\venv\Scripts\activate
- """
+pyinstaller
+(.venv) PS C:\Users\toon.vandegenachte\VSCProjects\LAB2\build> pyinstaller --onefile --noconsole --name LaserTool --icon=pics/crosshair.webp --add-data "pics/logo-LAB-motion-systems.png;pics"  main_qt.py

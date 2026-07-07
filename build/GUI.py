@@ -388,16 +388,28 @@ class GUI:
         if not save_path:
             return
         temp_plot_path = 'temp_plot.png'
-        self.report.copy_and_resize_plot(self.plotter.fig2, self.plotter.ax2, temp_plot_path)
-        self.report.create_report(save_path, temp_plot_path)
-        os.remove(temp_plot_path)
+        try:
+            self.report.copy_and_resize_plot(self.plotter.fig2, self.plotter.ax2, temp_plot_path)
+            self.report.create_report(save_path, temp_plot_path)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create report:\n{e}")
+            return
+        finally:
+            if os.path.exists(temp_plot_path):
+                os.remove(temp_plot_path)
+        messagebox.showinfo("Success", "Report saved successfully!")
 
     def save_measurement_png(self):
         save_path = filedialog.asksaveasfilename(defaultextension=".png", filetypes=[("PNG files", "*.png")])
         if not save_path:
             return
         temp_plot_path = 'temp_plot.png'
-        self.report.copy_and_resize_plot(self.plotter.fig2, self.plotter.ax2, temp_plot_path, save=save_path)
+        try:
+            self.report.copy_and_resize_plot(self.plotter.fig2, self.plotter.ax2, temp_plot_path, save=save_path)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to save PNG:\n{e}")
+            return
+        messagebox.showinfo("Success", "Plot saved successfully!")
 
 
     def lowpass(self):
@@ -410,22 +422,33 @@ class GUI:
             self.sample_count_label.config(text=f"{count}")
 
     def on_widget_double_click(self, widget):
+        try:
+            self.data_holder.extend_data(widget.name)
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to set reference:\n{e}")
+            return
         self.reference = widget.name
         self.reference_label.config(text=f"Reference: {self.reference}")
-        self.data_holder.extend_data(widget.name)
         print(f"Replaced reference with: {self.reference}")
 
     def get_reference(self):
         return self.reference
 
-    def get_results(self,name):
-        ptp = self.data_holder.data[name]['results']['ptp']
-        a = self.data_holder.data[name]['coefficients'][0]
+    def get_results(self, name):
+        try:
+            ptp = self.data_holder.data[name]['results']['ptp']
+            a = self.data_holder.data[name]['coefficients'][0]
+        except (KeyError, TypeError):
+            return "No results available"
+
         if self.get_reference() and self.get_reference() != name:
             ref_name = self.get_reference()
-            a_ref= self.data_holder.data[ref_name]['coefficients'][0]
-            delta_a = a - a_ref
-            return f"slope: {a:.2f} relative {delta_a:.2f} (µm/m)\n ptp: {ptp:.2f} (µm)"
+            try:
+                a_ref = self.data_holder.data[ref_name]['coefficients'][0]
+                delta_a = a - a_ref
+                return f"slope: {a:.2f} relative {delta_a:.2f} (µm/m)\n ptp: {ptp:.2f} (µm)"
+            except (KeyError, TypeError):
+                pass
         return f"slope: {a:.2f} (µm)\n ptp: {ptp:.2f} (µm)"
 
     def clear_reference(self):

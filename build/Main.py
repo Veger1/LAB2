@@ -1,4 +1,5 @@
 import sys
+import traceback
 import tkinter as tk
 from tkinter import messagebox, simpledialog, filedialog
 
@@ -13,6 +14,7 @@ from GUI import GUI
 class MainApp:
     def __init__(self):
         self.root = tk.Tk()
+        self.root.report_callback_exception = self.handle_exception
         self.data = Data()
         self.plotter = Plotter(self.root, self.data)
         self.sampler = Sampler(self.root, self.data)
@@ -25,6 +27,13 @@ class MainApp:
 
     def run(self):
         self.gui.show()
+
+    @staticmethod
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        # Tkinter callbacks swallow exceptions by default (prints to stderr, which is invisible
+        # in a windowed build). This surfaces anything not already caught by a specific handler.
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
+        messagebox.showerror("Unexpected Error", f"An unexpected error occurred:\n{exc_value}")
 
     def on_closing(self):  # Ensure the connection is closed before closing the app
         if messagebox.askokcancel("Quit", "Do you want to quit?"):

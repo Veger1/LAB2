@@ -1,4 +1,6 @@
 # Ignore IDE-specific files
 workspace.xml
 .idea/workspace.xml
-*
+.venv/
+.idea/
+build/__pycache__/

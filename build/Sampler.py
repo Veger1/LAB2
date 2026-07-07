@@ -2,7 +2,6 @@ from time import sleep
 import serial
 import serial.tools.list_ports
 import threading
-from tkinter import messagebox
 import numpy as np
 
 
