@@ -7,6 +7,7 @@
 # decide how to present them.
 
 import csv
+import unicodedata
 from dataclasses import dataclass, field
 from queue import Queue
 from typing import Callable, Optional
@@ -65,7 +66,11 @@ class DataStore:
 
     @staticmethod
     def _validate_name(name, existing_names):
-        name = (name or "").strip()
+        # Drop control/format characters (e.g. zero-width space U+200B) that
+        # can be pasted in invisibly, pass a plain .strip(), and later fail to
+        # encode when writing the save file.
+        name = "".join(ch for ch in (name or "") if unicodedata.category(ch) not in ("Cc", "Cf"))
+        name = name.strip()
         if not name:
             raise ValueError("Name cannot be empty.")
         if name in existing_names:
@@ -215,7 +220,7 @@ class DataStore:
         for name in skipped_empty:
             del selected[name]
 
-        with open(path, 'w', newline='') as f:
+        with open(path, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
             for name, measurement in selected.items():
                 x_orig, y_orig = measurement.original
@@ -227,7 +232,7 @@ class DataStore:
     def load(self, path):
         skipped_rows = 0
         loaded = {}
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             for row in reader:
                 if len(row) < 3 or row[1] not in ('X', 'Y'):  # only original data is ever loaded
