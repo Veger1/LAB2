@@ -117,6 +117,11 @@ class MainWindow(QMainWindow):
         self.clear_button.clicked.connect(self._clear_sampler)
         layout.addWidget(self.clear_button)
 
+        # self.dummy_button = QPushButton("Dummy")
+        # self.dummy_button.setToolTip("Generate simulated live data, no Arduino required.")
+        # self.dummy_button.clicked.connect(self._start_dummy_sampling)
+        # layout.addWidget(self.dummy_button)
+
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.sampler.connect)
         layout.addWidget(self.connect_button)
@@ -303,13 +308,23 @@ class MainWindow(QMainWindow):
         if self.sampler.start_sampler():
             self.plotter.start()
             self.start_button.setEnabled(False)
+    #         self.dummy_button.setEnabled(False)
             self.stop_button.setEnabled(True)
             self._update_daq_status()
+
+    # def _start_dummy_sampling(self):
+    #     if self.sampler.offline_sampler():
+    #         self.plotter.start()
+    #         self.start_button.setEnabled(False)
+    #         self.dummy_button.setEnabled(False)
+    #         self.stop_button.setEnabled(True)
+    #         self._update_daq_status()
 
     def _stop_sampling(self):
         self.sampler.stop_sampling()
         self.plotter.stop()
         self.start_button.setEnabled(True)
+        # self.dummy_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         self._update_daq_status()
 
